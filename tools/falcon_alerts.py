@@ -24,7 +24,7 @@ header = {
 r1 = falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
 r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
 header['X-CSRF-Token'] = r2.json()['csrf_token']
-fh_uname = raw_input('FH Username (first.last): ') + '@rackspace.com'
+fh_uname = raw_input('FH Username (email address): ')
 fh_pass = getpass(prompt='FH Password: ')
 fh_2fa = raw_input('FH 2FA: ')
 auth_data = {'username': fh_uname, 'password': fh_pass, '2fa': fh_2fa}
@@ -46,7 +46,7 @@ except KeyError:
 print '\n[*] {0} customer instances detected'.format(len(customer_dict))
 print 'Searching for new alerts...'
 for i in customer_dict:
-    if r5.json()['user_customers'][i]['alias'] == 'IRON CLOUD':  # Rackspace corporate
+    if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
         continue
     tmp = {'cid': i}
     s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json=tmp)
