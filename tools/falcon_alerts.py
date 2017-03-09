@@ -64,7 +64,7 @@ for i in customer_dict:
             if bucket['name'] == 'status':
                 for value in bucket['buckets']:
                     if value['label'] == 'new':
-                        if 'count' in value:
+                        if 'count' in value and value['count'] > 0:
                             print
                             print r5.json()['user_customers'][i]['name']  # customer name
                             print '*' * len(r5.json()['user_customers'][i]['name'])
