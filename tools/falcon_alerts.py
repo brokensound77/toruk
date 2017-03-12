@@ -38,7 +38,7 @@ try:
     customer_dict = r5.json()['customers']
     header['X-CSRF-Token'] = r5.json()['csrf_token']
 except KeyError:
-    print 'Check your credentials and rerun the program, exiting...'
+    print 'Check your credentials and re-run the program, exiting...'
     exit(2)
 #########################################################################
 # iterate through customer instances to retrieve, parse, and display data
