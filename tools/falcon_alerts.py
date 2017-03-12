@@ -69,5 +69,6 @@ for i in customer_dict:
                             print r5.json()['user_customers'][i]['name']  # customer name
                             print '*' * len(r5.json()['user_customers'][i]['name'])
                             print '[!] {0} alert(s) detected!'.format(value['count'])
+                            print
                 #pp.pprint(bucket['buckets'])  # for testing!
-print '\n[*] Search complete'
+print '[*] Search complete'
