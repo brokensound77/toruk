@@ -1,6 +1,7 @@
 #!/usr/bin/python
 #
-# zeroex00
+# MIT License
+# br0k3ns0und
 
 import requests
 from getpass import getpass
@@ -46,7 +47,7 @@ def toruk():
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
     print '\n[*] {0} customer instances detected'.format(len(customer_dict))
-    print 'Searching for new alerts...'
+    print '[*] Searching for new alerts...'
     for i in customer_dict:
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
@@ -70,7 +71,7 @@ def toruk():
                                 print
                                 print r5.json()['user_customers'][i]['name']  # customer name
                                 print '*' * len(r5.json()['user_customers'][i]['name'])
-                                print '{0} alert(s) detected!'.format(value['count'])
+                                print '[!] {0} alert(s) detected!'.format(value['count'])
                     #pp.pprint(bucket['buckets'])  # for testing!
     print '\nSearch complete'
 
