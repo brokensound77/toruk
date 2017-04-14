@@ -19,11 +19,9 @@ Customer A
 **********
 [!] 2 alert(s) detected!
 
-
 Customer D
 **********
 [!] 5 alert(s) detected!
-
 
 Customer Z
 **********
