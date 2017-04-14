@@ -73,7 +73,7 @@ def toruk():
                                 print '*' * len(r5.json()['user_customers'][i]['name'])
                                 print '[!] {0} alert(s) detected!'.format(value['count'])
                     #pp.pprint(bucket['buckets'])  # for testing!
-    print '\nSearch complete'
+    print '\n[*] Search complete'
 
 art = '''
                                                                                              `/`
