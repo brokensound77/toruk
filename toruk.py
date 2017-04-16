@@ -23,9 +23,7 @@ header = {
 
 
 def falcon_auth():
-    ########################
-    # Authentication Process
-    ########################
+    """ Authentication Process """
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
@@ -54,35 +52,61 @@ def toruk():
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
-    print '\n[*] {0} customer instances detected'.format(len(customer_dict))
+    print
+    print '[*] {0} customer instances detected'.format(len(customer_dict))
     print '[*] Searching for new alerts...'
     for i in customer_dict:
+        customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
         tmp = {'cid': i}
         s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json=tmp)
         s9 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
         header['X-CSRF-Token'] = s9.json()['csrf_token']
-        # There are 3 other v1 posts passed per customer with varying payloads.The dictionary below is required to return
-        # the necessary data; modifying it can break the request (needs more testing). I know it is not pep8 (too long)
-        data_dict = {"name":"time","min_doc_count":0,"size":5,"type":"date_range","field":"last_behavior","date_ranges":[{"from":"now-1h","to":"now","label":"Last hour"},{"from":"now-24h","to":"now","label":"Last day"},{"from":"now-7d","to":"now","label":"Last week"},{"from":"now-30d","to":"now","label":"Last 30 days"},{"from":"now-90d","to":"now","label":"Last 90 days"}]},{"name":"status","min_doc_count":0,"size":5,"type":"terms","field":"status"},{"name":"severity","min_doc_count":0,"size":5,"type":"range","field":"max_severity","ranges":[{"from":80,"to":101,"label":"Critical","id":4},{"from":60,"to":80,"label":"High","id":3},{"from":40,"to":60,"label":"Medium","id":2},{"from":20,"to":40,"label":"Low","id":1},{"from":0,"to":20,"label":"Informational","id":0}]},{"name":"scenario","min_doc_count":0,"size":0,"type":"terms","field":"behaviors.scenario"},{"name":"assigned_to_uid","min_doc_count":1,"size":5,"type":"terms","field":"assigned_to_uid","missing":"Unassigned"},{"name":"host","min_doc_count":1,"size":5,"type":"terms","field":"device.hostname.raw","missing":"Unknown"},{"name":"triggering_file","min_doc_count":1,"size":5,"type":"terms","field":"behaviors.filename.raw"}
-        s10 = falcon.post('https://falcon.crowdstrike.com/api2/detects/aggregates/detects/GET/v1', headers=header,
-                          data=json.dumps(data_dict))
-        if len(s10.json()['resources']) > 0:
-            #pp.pprint(s10.json())  # full json data set!
-            cust_data = s10.json()
-            for bucket in cust_data['resources']:
-                if bucket['name'] == 'status':
-                    for value in bucket['buckets']:
-                        if value['label'] == 'new':
-                            if 'count' in value and value['count'] > 0:
-                                print
-                                print r5.json()['user_customers'][i]['name']  # customer name
-                                print '*' * len(r5.json()['user_customers'][i]['name'])
-                                print '[!] {0} alert(s) detected!'.format(value['count'])
-                                print
-                    #pp.pprint(bucket['buckets'])  # for testing!
+        #####################################################################
+        # insert per instance code below
+        #####################################################################
+        #get_alerts(customer_name)
+        get_machines()
+        #####################################################################
     print '[*] Search complete'
+
+
+def get_alerts(customer_name):
+    """ gets alerts """
+    # There are 3 other v1 posts passed per customer with varying payloads.The dictionary below is required to return
+    # the necessary data; modifying it can break the request (needs more testing). I know it is not pep8 (too long)
+    data_dict = {"name":"time","min_doc_count":0,"size":5,"type":"date_range","field":"last_behavior","date_ranges":[{"from":"now-1h","to":"now","label":"Last hour"},{"from":"now-24h","to":"now","label":"Last day"},{"from":"now-7d","to":"now","label":"Last week"},{"from":"now-30d","to":"now","label":"Last 30 days"},{"from":"now-90d","to":"now","label":"Last 90 days"}]},{"name":"status","min_doc_count":0,"size":5,"type":"terms","field":"status"},{"name":"severity","min_doc_count":0,"size":5,"type":"range","field":"max_severity","ranges":[{"from":80,"to":101,"label":"Critical","id":4},{"from":60,"to":80,"label":"High","id":3},{"from":40,"to":60,"label":"Medium","id":2},{"from":20,"to":40,"label":"Low","id":1},{"from":0,"to":20,"label":"Informational","id":0}]},{"name":"scenario","min_doc_count":0,"size":0,"type":"terms","field":"behaviors.scenario"},{"name":"assigned_to_uid","min_doc_count":1,"size":5,"type":"terms","field":"assigned_to_uid","missing":"Unassigned"},{"name":"host","min_doc_count":1,"size":5,"type":"terms","field":"device.hostname.raw","missing":"Unknown"},{"name":"triggering_file","min_doc_count":1,"size":5,"type":"terms","field":"behaviors.filename.raw"}
+    s10 = falcon.post('https://falcon.crowdstrike.com/api2/detects/aggregates/detects/GET/v1', headers=header,
+                      data=json.dumps(data_dict))
+    if len(s10.json()['resources']) > 0:
+        #pp.pprint(s10.json())  # full json data set!
+        cust_data = s10.json()
+        for bucket in cust_data['resources']:
+            if bucket['name'] == 'status':
+                for value in bucket['buckets']:
+                    if value['label'] == 'new':
+                        if 'count' in value and value['count'] > 0:
+                            print
+                            print customer_name
+                            print '*' * len(customer_name)
+                            print '[!] {0} alert(s) detected!'.format(value['count'])
+                            print
+                #pp.pprint(bucket['buckets'])  # for testing!
+
+
+def get_machines():
+    """ gets machine info (props to mccrorysensei for the urls) """
+    machines = falcon.get('https://falcon.crowdstrike.com/api2/devices/queries/devices/v1', headers=header)
+    aids = machines.json()['resources']
+    url = 'https://falcon.crowdstrike.com/api2/devices/entities/devices/v1?'
+    for i in aids:
+        url += 'ids={0}&'.format(i)
+    url = url.rstrip('&')
+    machine_info = falcon.get(url, headers=header)
+    pp.pprint(machine_info.json())
+
+
 
 art = '''
                                                                                              `/`
