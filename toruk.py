@@ -24,6 +24,14 @@ header = {
         }
 
 
+parser.add_argument('-a', '--alerts', action='store_true', help='retrieves new alerts')
+parser.add_argument('-s', '--systems', action='count', default=0,
+                    help='retrieves systems information; ss for FULL details in JSON (NOISY!)')
+parser.add_argument('-c', '--customer', type=str, help='cid for specific customer')
+args = parser.parse_args()
+print args.customer
+
+
 def falcon_auth():
     """ Authentication Process """
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
@@ -37,7 +45,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk():
+def toruk(alerts, systems, customer_cid):
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
         falcon_auth()
@@ -46,18 +54,21 @@ def toruk():
     # retrieve customer list
     ########################
     try:
-        customer_dict = r5.json()['customers']
+        customer_list = r5.json()['customers']
         header['X-CSRF-Token'] = r5.json()['csrf_token']
     except KeyError:
         print 'Check your credentials and rerun the program, exiting...'
         exit(2)
+    if customer_cid is not None:
+        customer_list = [customer_cid]
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
     print
-    print '[*] {0} customer instances detected'.format(len(customer_dict))
-    print '[*] Searching for new alerts...'
-    for i in customer_dict:
+    print '[*] {0} customer instances detected'.format(len(customer_list))
+    print '[*] Performing search...'
+    print
+    for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
@@ -68,8 +79,14 @@ def toruk():
         #####################################################################
         # insert per instance code below
         #####################################################################
-        #print get_alerts(customer_name)
-        print get_machines(customer_name)
+        if alerts:
+            tmp_alerts = get_alerts(customer_name)
+            if tmp_alerts is not None:
+                print tmp_alerts
+        if systems == 1:
+            print get_machines(customer_name)
+        elif systems > 1:
+            print get_machines(customer_name, full=True)
         #####################################################################
     print '[*] Search complete'
 
@@ -89,12 +106,11 @@ def get_alerts(customer_name):
                 for value in bucket['buckets']:
                     if value['label'] == 'new':
                         if 'count' in value and value['count'] > 0:
-                            alert_str = '\n'
-                            alert_str += customer_name + '\n'
+                            alert_str + customer_name + '\n'
                             alert_str += '*' * len(customer_name) + '\n'
                             alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
-    return alert_str
+                            return alert_str
 
 
 def get_machines(customer_name, full=False):
@@ -108,7 +124,7 @@ def get_machines(customer_name, full=False):
     machine_info = falcon.get(url, headers=header)
     machines_str = '{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
     if full:
-        machines_str += pp.pformat(machine_info.json())
+        machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
         return machines_str
     else:
         machines_str += '{0:<50} {1}\n{2:<50} {3}\n'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
@@ -195,4 +211,4 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    toruk()
+    toruk(args.alerts, args.systems, args.customer)
