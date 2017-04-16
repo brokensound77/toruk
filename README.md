@@ -14,7 +14,8 @@ optional arguments:
   -s, --systems         retrieves systems information; ss for FULL details in
                         JSON (NOISY!)
   -c CUSTOMER, --customer CUSTOMER
-                        cid for specific customer```
+                        cid for specific customer
+```
 You will then be prompted to enter creds and 2fa
 
 sample output:
