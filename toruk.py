@@ -6,12 +6,14 @@
 import requests
 from getpass import getpass
 import json
+import argparse
 # temp for testing
 import pprint
 
 
 pp = pprint.PrettyPrinter(indent=4)
 falcon = requests.Session()
+parser = argparse.ArgumentParser()
 header = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Encoding': 'gzip, deflate, br',
@@ -67,7 +69,7 @@ def toruk():
         # insert per instance code below
         #####################################################################
         #get_alerts(customer_name)
-        get_machines()
+        get_machines(customer_name)
         #####################################################################
     print '[*] Search complete'
 
@@ -95,17 +97,27 @@ def get_alerts(customer_name):
                 #pp.pprint(bucket['buckets'])  # for testing!
 
 
-def get_machines():
+def get_machines(customer_name, full=False):
     """ gets machine info (props to mccrorysensei for the urls) """
-    machines = falcon.get('https://falcon.crowdstrike.com/api2/devices/queries/devices/v1', headers=header)
+    machines = falcon.get('https://falcon.crowdstrike.com/api2/devices/queries/devices/v1?sort=last_seen.desc', headers=header)
     aids = machines.json()['resources']
     url = 'https://falcon.crowdstrike.com/api2/devices/entities/devices/v1?'
     for i in aids:
         url += 'ids={0}&'.format(i)
     url = url.rstrip('&')
     machine_info = falcon.get(url, headers=header)
-    pp.pprint(machine_info.json())
-
+    print customer_name
+    if full:
+        pp.pprint(machine_info.json())
+    else:
+        print '{0:<50} {1}\n{2:<50} {3}'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
+        for machine in machine_info.json()['resources']:
+            try:
+                print '{0:<50} {1}'.format(machine['hostname'], machine['last_seen'])
+            except KeyError as e:
+                print 'Issue pulling host info: {0}'.format(e)
+                continue
+    print
 
 
 art = '''
