@@ -68,8 +68,8 @@ def toruk():
         #####################################################################
         # insert per instance code below
         #####################################################################
-        #get_alerts(customer_name)
-        get_machines(customer_name)
+        #print get_alerts(customer_name)
+        print get_machines(customer_name)
         #####################################################################
     print '[*] Search complete'
 
@@ -89,12 +89,12 @@ def get_alerts(customer_name):
                 for value in bucket['buckets']:
                     if value['label'] == 'new':
                         if 'count' in value and value['count'] > 0:
-                            print
-                            print customer_name
-                            print '*' * len(customer_name)
-                            print '[!] {0} alert(s) detected!'.format(value['count'])
-                            print
+                            alert_str = '\n'
+                            alert_str += customer_name + '\n'
+                            alert_str += '*' * len(customer_name) + '\n'
+                            alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
+    return alert_str
 
 
 def get_machines(customer_name, full=False):
@@ -106,18 +106,19 @@ def get_machines(customer_name, full=False):
         url += 'ids={0}&'.format(i)
     url = url.rstrip('&')
     machine_info = falcon.get(url, headers=header)
-    print customer_name
+    machines_str = '{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
     if full:
-        pp.pprint(machine_info.json())
+        machines_str += pp.pformat(machine_info.json())
+        return machines_str
     else:
-        print '{0:<50} {1}\n{2:<50} {3}'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
+        machines_str += '{0:<50} {1}\n{2:<50} {3}\n'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
         for machine in machine_info.json()['resources']:
             try:
-                print '{0:<50} {1}'.format(machine['hostname'], machine['last_seen'])
+                machines_str += '{0:<50} {1}\n'.format(machine['hostname'], machine['last_seen'])
             except KeyError as e:
-                print 'Issue pulling host info: {0}'.format(e)
+                machines_str += 'Issue pulling host info: {0}\n'.format(e)
                 continue
-    print
+    return machines_str
 
 
 art = '''
