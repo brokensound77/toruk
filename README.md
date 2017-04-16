@@ -20,6 +20,10 @@ You will then be prompted to enter creds and 2fa
 
 sample output:
 ```
+python toruk.py -a
+
+<authentication removed>
+
 [*] 25 customer instances detected
 [*] Searching for new alerts...
 
