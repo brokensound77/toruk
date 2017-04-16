@@ -6,8 +6,15 @@ Crowdstrike Falcon Host script for iterating through instances to get alert data
 
 usage: 
 ```python
-python toruk.py
-```
+usage: toruk.py [-h] [-a] [-s] [-c CUSTOMER]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -a, --alerts          retrieves new alerts
+  -s, --systems         retrieves systems information; ss for FULL details in
+                        JSON (NOISY!)
+  -c CUSTOMER, --customer CUSTOMER
+                        cid for specific customer```
 You will then be prompted to enter creds and 2fa
 
 sample output:
