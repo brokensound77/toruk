@@ -8,15 +8,11 @@ from getpass import getpass
 import json
 # temp for testing
 import pprint
+
+
 pp = pprint.PrettyPrinter(indent=4)
-
-
-def toruk():
-    ########################
-    # Authentication Process
-    ########################
-    falcon = requests.Session()
-    header = {
+falcon = requests.Session()
+header = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'en-US; q=0.7, en; q=0.3',
@@ -24,16 +20,28 @@ def toruk():
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
         }
-    r1 = falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
+
+
+def falcon_auth():
+    ########################
+    # Authentication Process
+    ########################
+    falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
     fh_uname = raw_input('FH Username (email address): ')
     fh_pass = getpass(prompt='FH Password: ')
     fh_2fa = raw_input('FH 2FA: ')
     auth_data = {'username': fh_uname, 'password': fh_pass, '2fa': fh_2fa}
-    r3 = falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
-    r4 = falcon.get('https://falcon.crowdstrike.com')
+    falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
+    falcon.get('https://falcon.crowdstrike.com')
+
+
+def toruk():
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
+    if r5.status_code != 200:
+        falcon_auth()
+        r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     ########################
     # retrieve customer list
     ########################
@@ -72,8 +80,9 @@ def toruk():
                                 print r5.json()['user_customers'][i]['name']  # customer name
                                 print '*' * len(r5.json()['user_customers'][i]['name'])
                                 print '[!] {0} alert(s) detected!'.format(value['count'])
+                                print
                     #pp.pprint(bucket['buckets'])  # for testing!
-    print '\n[*] Search complete'
+    print '[*] Search complete'
 
 art = '''
                                                                                              `/`
