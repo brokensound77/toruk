@@ -25,6 +25,8 @@ header = {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
         }
+FALCON_UNAME = ''
+FALCON_PASS = ''
 
 
 parser.add_argument('-a', '--alerts', action='store_true', help='retrieves new alerts')
@@ -34,8 +36,25 @@ parser.add_argument('-i', '--instance', type=str, help='cid for specific custome
 parser.add_argument('-o', '--outfile', type=str, help='write output to the selected file, rather than to stdout')
 parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
 parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
-                    help='runs toruk in a loop, for the number of hours passed, running every 10 minutes')
+                    help='runs toruk in a loop, for the number of hours passed, running every minute')
 args = parser.parse_args()
+
+
+def set_auth():
+    global FALCON_UNAME
+    global FALCON_PASS
+    if args.config_file is not None:
+        try:
+            config.read(args.config_file)
+            FALCON_UNAME = str(config.get('Falconhost', 'username'))
+            FALCON_PASS = str(config.get('Falconhost', 'password'))
+            print '[*] Credentials read from config file'
+        except Exception as e:
+            print '[!] Check your config file and rerun the program, exiting...\n'
+            exit(2)
+    else:
+        FALCON_UNAME = raw_input('[$] Enter FH Username (email address): ')
+        FALCON_PASS = getpass(prompt='[$] Enter FH Password: ')
 
 
 def falcon_auth():
@@ -43,27 +62,14 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
-
-    if args.config_file is not None:
-        try:
-            config.read(args.config_file)
-            fh_uname = str(config.get('Falconhost', 'username'))
-            fh_pass = str(config.get('Falconhost', 'password'))
-            print '[*] Credentials read from config file'
-        except Exception as e:
-            print '[!] Check your config file and rerun the program, exiting...\n'
-            exit(2)
-    else:
-        fh_uname = raw_input('FH Username (email address): ')
-        fh_pass = getpass(prompt='FH Password: ')
-
-    fh_2fa = raw_input('FH 2FA: ')
-    auth_data = {'username': fh_uname, 'password': fh_pass, '2fa': fh_2fa}
+    fh_2fa = raw_input('[$] Enter FH 2FA: ')
+    auth_data = {'username': FALCON_UNAME, 'password': FALCON_PASS, '2fa': fh_2fa}
     falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
     falcon.get('https://falcon.crowdstrike.com')
 
 
 def toruk(alerts, systems, customer_cid, outfile):
+    falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
         falcon_auth()
@@ -81,10 +87,8 @@ def toruk(alerts, systems, customer_cid, outfile):
     if customer_cid is not None:
         customer_list = [customer_cid]
     ###################################
-    print
     print '[*] {0} customer instances detected'.format(len(customer_list))
     print '[*] Performing search...'
-    #print
     # outfile handling
     if outfile is not None:
         try:
@@ -235,7 +239,6 @@ art = '''
                         ``                                 .//-    ./:
                                                               .::.   `-
 
-
 '''
 
 title = '''
@@ -256,17 +259,20 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
+    # loop
     if args.loop is not None:
         print '[*] Loop mode selected'
-        print '[*] Running in a loop for {0} hours'.format(args.loop)
+        print '[*] Running in a loop for {0} hour(s)'.format(args.loop)
         if args.outfile is not None:
             print ('[!] It is not advisable to output to a file while in loop mode, as the contents will be overwitten '
                    'with each loop')
-        print
         timeout = time.time() + (60 * 60 * args.loop)
+        set_auth()
         while time.time() < timeout:
             toruk(args.alerts, args.systems, args.instance, args.outfile)
-            print '[*] Sleeping for 10 minutes'
-            time.sleep(600)
+            print '[*] Sleeping for 1 minute'
+            time.sleep(60)
     else:
+        # no loop
+        set_auth()
         toruk(args.alerts, args.systems, args.instance, args.outfile)
