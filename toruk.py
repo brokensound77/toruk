@@ -179,7 +179,7 @@ def get_machines(customer_name, full=False):
         machines_str += '{0:<50} {1}\n{2:<50} {3}\n'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
         for machine in machine_info.json()['resources']:
             try:
-                machines_str += '{0:<50} {1}\n'.format(machine['hostname'], machine['last_seen'])
+                machines_str += '{0:<50} {1}\n'.format(machine['hostname'][:48], machine['last_seen'])
             except KeyError as e:
                 machines_str += 'Issue pulling host info: {0}\n'.format(e)
                 continue
@@ -270,7 +270,7 @@ if __name__ == '__main__':
         set_auth()
         while time.time() < timeout:
             toruk(args.alerts, args.systems, args.instance, args.outfile)
-            print '[*] Sleeping for 1 minute'
+            print '[-] Sleeping for 1 minute'
             time.sleep(60)
     else:
         # no loop
