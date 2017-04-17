@@ -11,18 +11,15 @@ usage: toruk.py [-h] [-a] [-s] [-i INSTANCE] [-o OUTFILE] [-c CONFIG_FILE]
 optional arguments:
   -h, --help            show this help message and exit
   -a, --alerts          retrieves new alerts
-  -s, --systems         retrieves systems information; ss for FULL details in
-                        JSON (NOISY!)
+  -s, --systems         retrieves systems information; ss for FULL details in JSON (NOISY!)
   -i INSTANCE, --instance INSTANCE
                         cid for specific customer instance
   -o OUTFILE, --outfile OUTFILE
-                        write output to the selected file, rather than to
-                        stdout
+                        write output to the selected file, rather than to stdout
   -c CONFIG_FILE, --config-file CONFIG_FILE
                         select a config file with user credentials
   -l {1,2,3,4,5,6,7,8,9,10,11,12}, --loop {1,2,3,4,5,6,7,8,9,10,11,12}
-                        runs toruk in a loop, for the number of hours passed,
-                        running every 10 minutes
+                        runs toruk in a loop, for the number of hours passed, running every minute
 ```
 You will then be prompted to enter creds and 2fa
 
