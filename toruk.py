@@ -8,6 +8,7 @@ from getpass import getpass
 import json
 import argparse
 import ConfigParser
+import time
 # temp for testing
 import pprint
 
@@ -32,6 +33,8 @@ parser.add_argument('-s', '--systems', action='count', default=0,
 parser.add_argument('-i', '--instance', type=str, help='cid for specific customer instance')
 parser.add_argument('-o', '--outfile', type=str, help='write output to the selected file, rather than to stdout')
 parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
+parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
+                    help='runs toruk in a loop, for the number of hours passed, running every 10 minutes')
 args = parser.parse_args()
 
 
@@ -112,10 +115,12 @@ def toruk(alerts, systems, customer_cid, outfile):
         #####################################################################
         # alerts
         if alerts:
-            if outfile is not None:
-                f.write(get_alerts(customer_name))
-            else:
-                print get_alerts(customer_name)
+            tmp_alerts = get_alerts(customer_name)
+            if tmp_alerts is not None:
+                if outfile is not None:
+                    f.write(tmp_alerts)
+                else:
+                    print tmp_alerts
         # systems
         if systems == 1:
             if outfile is not None:
@@ -150,8 +155,7 @@ def get_alerts(customer_name):
                             alert_str += '*' * len(customer_name) + '\n'
                             alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
-                            if alert_str is not None:
-                                return alert_str
+                            return alert_str
 
 
 def get_machines(customer_name, full=False):
@@ -252,4 +256,17 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    toruk(args.alerts, args.systems, args.instance, args.outfile)
+    if args.loop is not None:
+        print '[*] Loop mode selected'
+        print '[*] Running in a loop for {0} hours'.format(args.loop)
+        if args.outfile is not None:
+            print ('[!] It is not advisable to output to a file while in loop mode, as the contents will be overwitten '
+                   'with each loop')
+        print
+        timeout = time.time() + (60 * 60 * args.loop)
+        while time.time() < timeout:
+            toruk(args.alerts, args.systems, args.instance, args.outfile)
+            print '[*] Sleeping for 10 minutes'
+            time.sleep(600)
+    else:
+        toruk(args.alerts, args.systems, args.instance, args.outfile)
