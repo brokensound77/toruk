@@ -60,7 +60,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid):
+def toruk(alerts, systems, customer_cid, outfile):
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
         falcon_auth()
@@ -74,15 +74,31 @@ def toruk(alerts, systems, customer_cid):
     except KeyError:
         print '[!] Check your credentials and rerun the program, exiting...\n'
         exit(2)
+    # customer_cid handling (if passed)
     if customer_cid is not None:
         customer_list = [customer_cid]
-    #########################################################################
-    # iterate through customer instances to retrieve, parse, and display data
-    #########################################################################
+    ###################################
     print
     print '[*] {0} customer instances detected'.format(len(customer_list))
     print '[*] Performing search...'
-    print
+    #print
+    # outfile handling
+    if outfile is not None:
+        try:
+            with open(outfile, 'wb') as f:
+                f.write('')  # clears file prior to loop iteration
+        except Exception as e:
+            print 'Error clearing {0}: {1}, exiting...'.format(outfile, e)
+            exit(2)
+        try:
+            f = open(outfile, 'ab')
+            print '[*] Writing contents to {0}'.format(outfile)
+        except Exception as e:
+            print 'Error opening {0} to write to: {1}, exiting...'.format(outfile, e)
+            exit(2)
+    #########################################################################
+    # iterate through customer instances to retrieve, parse, and display data
+    #########################################################################
     for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
@@ -94,15 +110,24 @@ def toruk(alerts, systems, customer_cid):
         #####################################################################
         # insert per instance code below
         #####################################################################
+        # alerts
         if alerts:
-            tmp_alerts = get_alerts(customer_name)
-            if tmp_alerts is not None:
-                print tmp_alerts
+            if outfile is not None:
+                f.write(get_alerts(customer_name))
+            else:
+                print get_alerts(customer_name)
+        # systems
         if systems == 1:
-            print get_machines(customer_name)
+            if outfile is not None:
+                f.write(get_machines(customer_name))
+            else:
+                print get_machines(customer_name)
         elif systems > 1:
             print get_machines(customer_name, full=True)
         #####################################################################
+        #####################################################################
+    if outfile is not None:
+        f.close()
     print '[*] Search complete'
 
 
@@ -125,7 +150,8 @@ def get_alerts(customer_name):
                             alert_str += '*' * len(customer_name) + '\n'
                             alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
-                            return alert_str
+                            if alert_str is not None:
+                                return alert_str
 
 
 def get_machines(customer_name, full=False):
@@ -137,7 +163,7 @@ def get_machines(customer_name, full=False):
         url += 'ids={0}&'.format(i)
     url = url.rstrip('&')
     machine_info = falcon.get(url, headers=header)
-    machines_str = '{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
+    machines_str = '\n{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
     if full:
         machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
         return machines_str
@@ -226,4 +252,4 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    toruk(args.alerts, args.systems, args.instance)
+    toruk(args.alerts, args.systems, args.instance, args.outfile)
