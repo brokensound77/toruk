@@ -7,11 +7,14 @@ import requests
 from getpass import getpass
 import json
 import argparse
+import ConfigParser
+import time
 # temp for testing
 import pprint
 
 
 pp = pprint.PrettyPrinter(indent=4)
+config = ConfigParser.RawConfigParser()
 falcon = requests.Session()
 parser = argparse.ArgumentParser()
 header = {
@@ -27,9 +30,12 @@ header = {
 parser.add_argument('-a', '--alerts', action='store_true', help='retrieves new alerts')
 parser.add_argument('-s', '--systems', action='count', default=0,
                     help='retrieves systems information; ss for FULL details in JSON (NOISY!)')
-parser.add_argument('-c', '--customer', type=str, help='cid for specific customer')
+parser.add_argument('-i', '--instance', type=str, help='cid for specific customer instance')
+parser.add_argument('-o', '--outfile', type=str, help='write output to the selected file, rather than to stdout')
+parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
+parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
+                    help='runs toruk in a loop, for the number of hours passed, running every 10 minutes')
 args = parser.parse_args()
-print args.customer
 
 
 def falcon_auth():
@@ -37,15 +43,27 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
-    fh_uname = raw_input('FH Username (email address): ')
-    fh_pass = getpass(prompt='FH Password: ')
+
+    if args.config_file is not None:
+        try:
+            config.read(args.config_file)
+            fh_uname = str(config.get('Falconhost', 'username'))
+            fh_pass = str(config.get('Falconhost', 'password'))
+            print '[*] Credentials read from config file'
+        except Exception as e:
+            print '[!] Check your config file and rerun the program, exiting...\n'
+            exit(2)
+    else:
+        fh_uname = raw_input('FH Username (email address): ')
+        fh_pass = getpass(prompt='FH Password: ')
+
     fh_2fa = raw_input('FH 2FA: ')
     auth_data = {'username': fh_uname, 'password': fh_pass, '2fa': fh_2fa}
     falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid):
+def toruk(alerts, systems, customer_cid, outfile):
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
         falcon_auth()
@@ -57,17 +75,33 @@ def toruk(alerts, systems, customer_cid):
         customer_list = r5.json()['customers']
         header['X-CSRF-Token'] = r5.json()['csrf_token']
     except KeyError:
-        print 'Check your credentials and rerun the program, exiting...'
+        print '[!] Check your credentials and rerun the program, exiting...\n'
         exit(2)
+    # customer_cid handling (if passed)
     if customer_cid is not None:
         customer_list = [customer_cid]
-    #########################################################################
-    # iterate through customer instances to retrieve, parse, and display data
-    #########################################################################
+    ###################################
     print
     print '[*] {0} customer instances detected'.format(len(customer_list))
     print '[*] Performing search...'
-    print
+    #print
+    # outfile handling
+    if outfile is not None:
+        try:
+            with open(outfile, 'wb') as f:
+                f.write('')  # clears file prior to loop iteration
+        except Exception as e:
+            print 'Error clearing {0}: {1}, exiting...'.format(outfile, e)
+            exit(2)
+        try:
+            f = open(outfile, 'ab')
+            print '[*] Writing contents to {0}'.format(outfile)
+        except Exception as e:
+            print 'Error opening {0} to write to: {1}, exiting...'.format(outfile, e)
+            exit(2)
+    #########################################################################
+    # iterate through customer instances to retrieve, parse, and display data
+    #########################################################################
     for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
@@ -79,15 +113,26 @@ def toruk(alerts, systems, customer_cid):
         #####################################################################
         # insert per instance code below
         #####################################################################
+        # alerts
         if alerts:
             tmp_alerts = get_alerts(customer_name)
             if tmp_alerts is not None:
-                print tmp_alerts
+                if outfile is not None:
+                    f.write(tmp_alerts)
+                else:
+                    print tmp_alerts
+        # systems
         if systems == 1:
-            print get_machines(customer_name)
+            if outfile is not None:
+                f.write(get_machines(customer_name))
+            else:
+                print get_machines(customer_name)
         elif systems > 1:
             print get_machines(customer_name, full=True)
         #####################################################################
+        #####################################################################
+    if outfile is not None:
+        f.close()
     print '[*] Search complete'
 
 
@@ -106,7 +151,7 @@ def get_alerts(customer_name):
                 for value in bucket['buckets']:
                     if value['label'] == 'new':
                         if 'count' in value and value['count'] > 0:
-                            alert_str + customer_name + '\n'
+                            alert_str = customer_name + '\n'
                             alert_str += '*' * len(customer_name) + '\n'
                             alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
@@ -122,7 +167,7 @@ def get_machines(customer_name, full=False):
         url += 'ids={0}&'.format(i)
     url = url.rstrip('&')
     machine_info = falcon.get(url, headers=header)
-    machines_str = '{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
+    machines_str = '\n{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
     if full:
         machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
         return machines_str
@@ -211,4 +256,17 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    toruk(args.alerts, args.systems, args.customer)
+    if args.loop is not None:
+        print '[*] Loop mode selected'
+        print '[*] Running in a loop for {0} hours'.format(args.loop)
+        if args.outfile is not None:
+            print ('[!] It is not advisable to output to a file while in loop mode, as the contents will be overwitten '
+                   'with each loop')
+        print
+        timeout = time.time() + (60 * 60 * args.loop)
+        while time.time() < timeout:
+            toruk(args.alerts, args.systems, args.instance, args.outfile)
+            print '[*] Sleeping for 10 minutes'
+            time.sleep(600)
+    else:
+        toruk(args.alerts, args.systems, args.instance, args.outfile)
