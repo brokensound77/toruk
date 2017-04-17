@@ -88,7 +88,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         customer_list = [customer_cid]
     ###################################
     print '[*] {0} customer instances detected'.format(len(customer_list))
-    print '[*] Performing search...'
+    print '[*] {0} - Performing search...'.format(time.strftime('%XL', time.localtime()))
     # outfile handling
     if outfile is not None:
         try:
@@ -137,7 +137,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         #####################################################################
     if outfile is not None:
         f.close()
-    print '[*] Search complete'
+    print '[*] {0} - Search complete'.format(time.strftime('%XL', time.localtime()))
 
 
 def get_alerts(customer_name):
