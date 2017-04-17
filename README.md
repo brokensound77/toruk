@@ -4,7 +4,6 @@ Crowdstrike Falcon Host script for iterating through instances to get alert data
 
 ## Usage
 
-usage: 
 ```
 usage: toruk.py [-h] [-a] [-s] [-i INSTANCE] [-o OUTFILE] [-c CONFIG_FILE]
                 [-l {1,2,3,4,5,6,7,8,9,10,11,12}]
