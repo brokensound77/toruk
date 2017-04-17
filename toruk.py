@@ -7,11 +7,13 @@ import requests
 from getpass import getpass
 import json
 import argparse
+import ConfigParser
 # temp for testing
 import pprint
 
 
 pp = pprint.PrettyPrinter(indent=4)
+config = ConfigParser.RawConfigParser()
 falcon = requests.Session()
 parser = argparse.ArgumentParser()
 header = {
@@ -27,9 +29,10 @@ header = {
 parser.add_argument('-a', '--alerts', action='store_true', help='retrieves new alerts')
 parser.add_argument('-s', '--systems', action='count', default=0,
                     help='retrieves systems information; ss for FULL details in JSON (NOISY!)')
-parser.add_argument('-c', '--customer', type=str, help='cid for specific customer')
+parser.add_argument('-i', '--instance', type=str, help='cid for specific customer instance')
+parser.add_argument('-o', '--outfile', type=str, help='write output to the selected file, rather than to stdout')
+parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
 args = parser.parse_args()
-print args.customer
 
 
 def falcon_auth():
@@ -37,8 +40,20 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
-    fh_uname = raw_input('FH Username (email address): ')
-    fh_pass = getpass(prompt='FH Password: ')
+
+    if args.config_file is not None:
+        try:
+            config.read(args.config_file)
+            fh_uname = str(config.get('Falconhost', 'username'))
+            fh_pass = str(config.get('Falconhost', 'password'))
+            print '[*] Credentials read from config file'
+        except Exception as e:
+            print '[!] Check your config file and rerun the program, exiting...\n'
+            exit(2)
+    else:
+        fh_uname = raw_input('FH Username (email address): ')
+        fh_pass = getpass(prompt='FH Password: ')
+
     fh_2fa = raw_input('FH 2FA: ')
     auth_data = {'username': fh_uname, 'password': fh_pass, '2fa': fh_2fa}
     falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
@@ -57,7 +72,7 @@ def toruk(alerts, systems, customer_cid):
         customer_list = r5.json()['customers']
         header['X-CSRF-Token'] = r5.json()['csrf_token']
     except KeyError:
-        print 'Check your credentials and rerun the program, exiting...'
+        print '[!] Check your credentials and rerun the program, exiting...\n'
         exit(2)
     if customer_cid is not None:
         customer_list = [customer_cid]
@@ -106,7 +121,7 @@ def get_alerts(customer_name):
                 for value in bucket['buckets']:
                     if value['label'] == 'new':
                         if 'count' in value and value['count'] > 0:
-                            alert_str + customer_name + '\n'
+                            alert_str = customer_name + '\n'
                             alert_str += '*' * len(customer_name) + '\n'
                             alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
                 #pp.pprint(bucket['buckets'])  # for testing!
@@ -211,4 +226,4 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    toruk(args.alerts, args.systems, args.customer)
+    toruk(args.alerts, args.systems, args.instance)
