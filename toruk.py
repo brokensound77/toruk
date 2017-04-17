@@ -270,7 +270,7 @@ if __name__ == '__main__':
         set_auth()
         while time.time() < timeout:
             toruk(args.alerts, args.systems, args.instance, args.outfile)
-            print '[*] Sleeping for 1 minute'
+            print '[-] Sleeping for 1 minute'
             time.sleep(60)
     else:
         # no loop
