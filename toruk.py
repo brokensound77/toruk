@@ -88,7 +88,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         customer_list = [customer_cid]
     ###################################
     print '[*] {0} customer instances detected'.format(len(customer_list))
-    print '[*] {0} - Performing search...'.format(time.strftime('%XL', time.localtime()))
+    print '[*] Performing search ({0})...'.format(time.strftime('%XL', time.localtime()))
     # outfile handling
     if outfile is not None:
         try:
@@ -110,10 +110,13 @@ def toruk(alerts, systems, customer_cid, outfile):
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
-        tmp = {'cid': i}
-        s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json=tmp)
-        s9 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
-        header['X-CSRF-Token'] = s9.json()['csrf_token']
+        #tmp = {'cid': i}
+        try:
+            s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json={'cid': i})
+            s9 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
+            header['X-CSRF-Token'] = s9.json()['csrf_token']
+        except requests.exceptions.ConnectionError:
+            continue
         #####################################################################
         # insert per instance code below
         #####################################################################
@@ -137,7 +140,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         #####################################################################
     if outfile is not None:
         f.close()
-    print '[*] {0} - Search complete'.format(time.strftime('%XL', time.localtime()))
+    print '[*] Search complete ({0})'.format(time.strftime('%XL', time.localtime()))
 
 
 def get_alerts(customer_name):
