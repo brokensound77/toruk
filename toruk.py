@@ -179,10 +179,12 @@ def get_machines(customer_name, full=False):
         machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
         return machines_str
     else:
-        machines_str += '{0:<50} {1}\n{2:<50} {3}\n'.format('Hosts', 'Last Seen', '-' * 5, '-' * 9)
+        machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n{4:<37} {5:<25} {6:<15} {7:<22}\n'.format(
+            'Hosts', 'Operating System', 'Public IP', 'Last Seen', '-' * 5, '-' * 16, '-' * 9, '-' * 9)
         for machine in machine_info.json()['resources']:
             try:
-                machines_str += '{0:<50} {1}\n'.format(machine['hostname'][:48], machine['last_seen'])
+                machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n'.format(
+                    machine['hostname'][:35], machine['os_version'][:25], machine['external_ip'][:15], machine['last_seen'][:22])
             except KeyError as e:
                 machines_str += 'Issue pulling host info: {0}\n'.format(e)
                 continue
