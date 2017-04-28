@@ -96,7 +96,7 @@ You will then be prompted to enter creds and 2fa
 
 ### Alerts
 ```
-python toruk.py -a -c \location\of\config.cfg
+python toruk.py -a -c /location/of/config.cfg
 .
 .
 [*] Credentials read from config file
@@ -120,7 +120,7 @@ Customer Z
 
 ### System Info
 ```
-python toruk.py -s -c \location\of\config.cfg
+python toruk.py -s -c /location/of/config.cfg
 .
 .
 [*] Credentials read from config file
