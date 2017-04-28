@@ -3,7 +3,6 @@
 Crowdstrike Falcon Host script for iterating through instances to get alert data and system information. Can easily be extended to pull any info within each instance. Primarily designed for multi-tenant customers with more than one instance. (Searches across all instances, which the user has rights to)
 
 ```
-
                                                                                              `/`
                                                                                            -/-.
                                                                                         `:o+.:
