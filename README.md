@@ -92,7 +92,9 @@ optional arguments:
 ```
 You will then be prompted to enter creds and 2fa
 
-sample output:
+## sample output:
+
+### Alerts
 ```
 python toruk.py -a -c \location\of\config.cfg
 .
@@ -116,6 +118,7 @@ Customer Z
 [*] Search complete (01:12:58L)
 ```
 
+### System Info
 ```
 python toruk.py -s -c \location\of\config.cfg
 .
@@ -125,45 +128,46 @@ python toruk.py -s -c \location\of\config.cfg
 [*] 500 customer instances detected
 [*] Performing search (01:14:29L)...
 
-Joe's Widgets
-*************
-Hosts                               Operating System          Public IP       Last Seen
------                               ----------------          ---------       ---------
-12345e-web             	            Windows Server 2012 R2    50.123.456.20   2017-04-16T09:49:54Z
-145gt5-db7             		          Windows Server 2012 R2    50.123.456.21   2017-04-16T09:48:08Z
-4asr47-Db1             		          Windows Server 2012 R2    50.123.456.202  2017-04-16T09:47:46Z
-4avs54-APP3            		          Windows Server 2012 R2    50.123.45.93    2017-04-16T09:47:06Z
-abcd21-Db6             		          Windows Server 2012 R2    50.123.45.94    2017-04-16T09:46:37Z
-123a47-db2             		          Windows Server 2012 R2    50.123.45.205   2017-04-16T09:44:45Z
-asas85-web             		          Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
-asfs43-web             		          Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
-4asr47-Db1             		          Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
-4avs54-APP3            		          Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
-abcd21-Db6             		          Windows Server 2012 R2    50.123.45.210   2017-04-16T09:46:37Z
-123a47-db2             		          Windows Server 2012 R2    50.123.456.11   2017-04-16T09:44:45Z
-
-Workers United
-**************
-Hosts                               Operating System          Public IP       Last Seen
------                               ----------------          ---------       ---------
-asas85-web             		          Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
-asfs43-web             		          Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
-4asr47-Db1             		          Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
-4avs54-APP3            		          Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
-
-
-Joe's Plumbing Co
-*****************
-Hosts                               Operating System          Public IP       Last Seen
------                               ----------------          ---------       ---------
-145gt5-db7             		          Windows Server 2012 R2    50.123.456.21   2017-04-16T09:48:08Z
-4asr47-Db1             		          Windows Server 2012 R2    50.123.456.202  2017-04-16T09:47:46Z
-4avs54-APP3            		          Windows Server 2012 R2    50.123.45.93    2017-04-16T09:47:06Z
-abcd21-Db6             		          Windows Server 2012 R2    50.123.45.94    2017-04-16T09:46:37Z
-123a47-db2             		          Windows Server 2012 R2    50.123.45.205   2017-04-16T09:44:45Z
-asas85-web             		          Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
-asfs43-web             		          Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
-4asr47-Db1             		          Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
+Joe's Widgets                         
+*************                         
+Hosts                                 Operating System          Public IP       Last Seen
+-----                                 ----------------          ---------       ---------
+12345e-web                            Windows Server 2012 R2    50.123.456.20   2017-04-16T09:49:54Z
+145gt5-db7                            Windows Server 2012 R2    50.123.456.21   2017-04-16T09:48:08Z
+4asr47-Db1                            Windows Server 2012 R2    50.123.456.202  2017-04-16T09:47:46Z
+4avs54-APP3                           Windows Server 2012 R2    50.123.45.93    2017-04-16T09:47:06Z
+abcd21-Db6                            Windows Server 2012 R2    50.123.45.94    2017-04-16T09:46:37Z
+123a47-db2                            Windows Server 2012 R2    50.123.45.205   2017-04-16T09:44:45Z
+asas85-web                            Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
+asfs43-web                            Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
+4asr47-Db1                            Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
+4avs54-APP3                           Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
+abcd21-Db6                            Windows Server 2012 R2    50.123.45.210   2017-04-16T09:46:37Z
+123a47-db2                            Windows Server 2012 R2    50.123.456.11   2017-04-16T09:44:45Z
+                                      
+Workers United                        
+**************                        
+Hosts                                 Operating System          Public IP       Last Seen
+-----                                 ----------------          ---------       ---------
+asas85-web                            Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
+asfs43-web                            Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
+4asr47-Db1                            Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
+4avs54-APP3                           Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
+                                      
+                                      
+Joe's Plumbing Co                     
+*****************                     
+Hosts                                 Operating System          Public IP       Last Seen
+-----                                 ----------------          ---------       ---------
+145gt5-db7                            Windows Server 2012 R2    50.123.456.21   2017-04-16T09:48:08Z
+4asr47-Db1                            Windows Server 2012 R2    50.123.456.202  2017-04-16T09:47:46Z
+4avs54-APP3                           Windows Server 2012 R2    50.123.45.93    2017-04-16T09:47:06Z
+abcd21-Db6                            Windows Server 2012 R2    50.123.45.94    2017-04-16T09:46:37Z
+123a47-db2                            Windows Server 2012 R2    50.123.45.205   2017-04-16T09:44:45Z
+asas85-web                            Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
+asfs43-web                            Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
+4asr47-Db1                            Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
+                                      
 
 [*] Search complete (01:19:29L)
 ```
