@@ -153,8 +153,7 @@ asas85-web                            Windows Server 2012 R2    50.123.45.96    
 asfs43-web                            Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
 4asr47-Db1                            Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
 4avs54-APP3                           Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
-                                      
-                                      
+                                                                            
 Joe's Plumbing Co                     
 *****************                     
 Hosts                                 Operating System          Public IP       Last Seen
@@ -168,6 +167,5 @@ asas85-web                            Windows Server 2012 R2    50.123.45.96    
 asfs43-web                            Windows Server 2012 R2    50.123.456.177  2017-04-01T09:45:44Z
 4asr47-Db1                            Windows Server 2012 R2    50.123.456.88   2017-04-16T09:47:46Z
                                       
-
 [*] Search complete (01:19:29L)
 ```
