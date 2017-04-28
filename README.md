@@ -100,7 +100,7 @@ python toruk.py -a -c /location/of/config.cfg
 .
 .
 [*] Credentials read from config file
-[$] Enter FH 2FA: 391689
+[$] Enter FH 2FA: 123456
 [*] 500 customer instances detected
 [*] Performing search (01:10:41L)...
 Customer A
@@ -124,7 +124,7 @@ python toruk.py -s -c /location/of/config.cfg
 .
 .
 [*] Credentials read from config file
-[$] Enter FH 2FA: 555199
+[$] Enter FH 2FA: 555777
 [*] 500 customer instances detected
 [*] Performing search (01:14:29L)...
 
