@@ -36,7 +36,8 @@ parser.add_argument('-i', '--instance', type=str, help='cid for specific custome
 parser.add_argument('-o', '--outfile', type=str, help='write output to the selected file, rather than to stdout')
 parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
 parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
-                    help='runs toruk in a loop, for the number of hours passed, running every minute')
+                    help='runs toruk in a loop, for the number of hours passed')
+parser.add_argument('-f', '--frequency', type=int, default=1, help='frequency (in minutes) for the loop to resume')
 args = parser.parse_args()
 
 
@@ -174,7 +175,7 @@ def get_machines(customer_name, full=False):
         url += 'ids={0}&'.format(i)
     url = url.rstrip('&')
     machine_info = falcon.get(url, headers=header)
-    machines_str = '\n{0}\n{1}\n'.format(customer_name, '*' * len(customer_name))
+    machines_str = '\n{0}\n{1}\n'.format(customer_name, '=' * len(customer_name))
     if full:
         machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
         return machines_str
@@ -276,7 +277,8 @@ if __name__ == '__main__':
         while time.time() < timeout:
             toruk(args.alerts, args.systems, args.instance, args.outfile)
             print '[-] Sleeping for 1 minute'
-            time.sleep(60)
+            # sleeps for the the number of minutes passed by parameter (default 1 minute)
+            time.sleep(args.frequency * 60)
     else:
         # no loop
         set_auth()
