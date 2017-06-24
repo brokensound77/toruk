@@ -132,7 +132,7 @@ python toruk.py -s -c /location/of/config.cfg
 [*] Performing search (01:14:29L)...
 
 Joe's Widgets                         
-*************                         
+=============                         
 Hosts                                 Operating System          Public IP       Last Seen
 -----                                 ----------------          ---------       ---------
 12345e-web                            Windows Server 2012 R2    50.123.456.20   2017-04-16T09:49:54Z
@@ -149,7 +149,7 @@ abcd21-Db6                            Windows Server 2012 R2    50.123.45.210   
 123a47-db2                            Windows Server 2012 R2    50.123.456.11   2017-04-16T09:44:45Z
                                       
 Workers United                        
-**************                        
+==============                        
 Hosts                                 Operating System          Public IP       Last Seen
 -----                                 ----------------          ---------       ---------
 asas85-web                            Windows Server 2012 R2    50.123.45.96    2017-04-16T09:44:35Z
@@ -158,7 +158,7 @@ asfs43-web                            Windows Server 2012 R2    50.123.456.177  
 4avs54-APP3                           Windows Server 2012 R2    50.123.45.209   2017-04-16T09:47:06Z
                                                                             
 Joe's Plumbing Co                     
-*****************                     
+=================                     
 Hosts                                 Operating System          Public IP       Last Seen
 -----                                 ----------------          ---------       ---------
 145gt5-db7                            Windows Server 2012 R2    50.123.456.21   2017-04-16T09:48:08Z
