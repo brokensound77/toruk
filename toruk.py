@@ -265,6 +265,10 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
+    # must choose something to do
+    if args.systems < 1 and not args.alerts:
+        print 'You must have something for toruk to do (-a or -s), exiting...'
+        exit(2)
     # loop
     if args.loop is not None:
         print '[*] Loop mode selected'
