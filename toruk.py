@@ -3,7 +3,6 @@
 # MIT License
 # br0k3ns0und
 
-import requests
 from getpass import getpass
 import json
 import argparse
@@ -11,7 +10,11 @@ import ConfigParser
 import time
 # temp for testing
 import pprint
-
+try:
+    import requests
+except ImportError:
+    print '[!] Ensure you have requests installed and re-run! (pip install requests)'
+    exit(2)
 
 pp = pprint.PrettyPrinter(indent=4)
 config = ConfigParser.RawConfigParser()
