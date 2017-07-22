@@ -41,6 +41,7 @@ parser.add_argument('-c', '--config-file', type=str, help='select a config file 
 parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
                     help='runs toruk in a loop, for the number of hours passed')
 parser.add_argument('-f', '--frequency', type=int, default=1, help='frequency (in minutes) for the loop to resume')
+parser.add_argument('-q', '--quiet', action='store_true', help='suppresses errors from alert retrieval failures')
 args = parser.parse_args()
 
 
@@ -72,7 +73,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, outfile):
+def toruk(alerts, systems, customer_cid, outfile, quiet):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -126,7 +127,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         #####################################################################
         # alerts
         if alerts:
-            tmp_alerts = get_alerts(customer_name)
+            tmp_alerts = get_alerts(customer_name, quiet)
             if tmp_alerts is not None:
                 if outfile is not None:
                     f.write(tmp_alerts)
@@ -147,7 +148,7 @@ def toruk(alerts, systems, customer_cid, outfile):
     print '[*] Search complete ({0})'.format(time.strftime('%XL', time.localtime()))
 
 
-def get_alerts(customer_name):
+def get_alerts(customer_name, quiet=False):
     """ gets alerts """
     # There are 3 other v1 posts passed per customer with varying payloads.The dictionary below is required to return
     # the necessary data; modifying it can break the request (needs more testing). I know it is not pep8 (too long)
@@ -169,7 +170,10 @@ def get_alerts(customer_name):
                     #pp.pprint(bucket['buckets'])  # for testing!
                                 return alert_str
     except KeyError:
-        return '[!] There was an issue retrieving alerts for {0}. Skipping...\n'.format(customer_name)
+        if not quiet:
+            return '[!] There was an issue retrieving alerts for {0}. Skipping...\n'.format(customer_name)
+        else:
+            return None
 
 
 def get_machines(customer_name, full=False):
@@ -285,11 +289,11 @@ if __name__ == '__main__':
         timeout = time.time() + (60 * 60 * args.loop)
         set_auth()
         while time.time() < timeout:
-            toruk(args.alerts, args.systems, args.instance, args.outfile)
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
             print '[-] Sleeping for {} minute(s)'.format(args.frequency)
             # sleeps for the the number of minutes passed by parameter (default 1 minute)
             time.sleep(args.frequency * 60)
     else:
         # no loop
         set_auth()
-        toruk(args.alerts, args.systems, args.instance, args.outfile)
+        toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
