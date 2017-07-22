@@ -3,7 +3,6 @@
 # MIT License
 # br0k3ns0und
 
-import requests
 from getpass import getpass
 import json
 import argparse
@@ -11,7 +10,11 @@ import ConfigParser
 import time
 # temp for testing
 import pprint
-
+try:
+    import requests
+except ImportError:
+    print '[!] Ensure you have requests installed and re-run! (pip install requests)'
+    exit(2)
 
 pp = pprint.PrettyPrinter(indent=4)
 config = ConfigParser.RawConfigParser()
@@ -38,6 +41,7 @@ parser.add_argument('-c', '--config-file', type=str, help='select a config file 
 parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,12],
                     help='runs toruk in a loop, for the number of hours passed')
 parser.add_argument('-f', '--frequency', type=int, default=1, help='frequency (in minutes) for the loop to resume')
+parser.add_argument('-q', '--quiet', action='store_true', help='suppresses errors from alert retrieval failures')
 args = parser.parse_args()
 
 
@@ -69,7 +73,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, outfile):
+def toruk(alerts, systems, customer_cid, outfile, quiet):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -123,7 +127,7 @@ def toruk(alerts, systems, customer_cid, outfile):
         #####################################################################
         # alerts
         if alerts:
-            tmp_alerts = get_alerts(customer_name)
+            tmp_alerts = get_alerts(customer_name, quiet)
             if tmp_alerts is not None:
                 if outfile is not None:
                     f.write(tmp_alerts)
@@ -144,26 +148,32 @@ def toruk(alerts, systems, customer_cid, outfile):
     print '[*] Search complete ({0})'.format(time.strftime('%XL', time.localtime()))
 
 
-def get_alerts(customer_name):
+def get_alerts(customer_name, quiet=False):
     """ gets alerts """
     # There are 3 other v1 posts passed per customer with varying payloads.The dictionary below is required to return
     # the necessary data; modifying it can break the request (needs more testing). I know it is not pep8 (too long)
     data_dict = {"name":"time","min_doc_count":0,"size":5,"type":"date_range","field":"last_behavior","date_ranges":[{"from":"now-1h","to":"now","label":"Last hour"},{"from":"now-24h","to":"now","label":"Last day"},{"from":"now-7d","to":"now","label":"Last week"},{"from":"now-30d","to":"now","label":"Last 30 days"},{"from":"now-90d","to":"now","label":"Last 90 days"}]},{"name":"status","min_doc_count":0,"size":5,"type":"terms","field":"status"},{"name":"severity","min_doc_count":0,"size":5,"type":"range","field":"max_severity","ranges":[{"from":80,"to":101,"label":"Critical","id":4},{"from":60,"to":80,"label":"High","id":3},{"from":40,"to":60,"label":"Medium","id":2},{"from":20,"to":40,"label":"Low","id":1},{"from":0,"to":20,"label":"Informational","id":0}]},{"name":"scenario","min_doc_count":0,"size":0,"type":"terms","field":"behaviors.scenario"},{"name":"assigned_to_uid","min_doc_count":1,"size":5,"type":"terms","field":"assigned_to_uid","missing":"Unassigned"},{"name":"host","min_doc_count":1,"size":5,"type":"terms","field":"device.hostname.raw","missing":"Unknown"},{"name":"triggering_file","min_doc_count":1,"size":5,"type":"terms","field":"behaviors.filename.raw"}
     s10 = falcon.post('https://falcon.crowdstrike.com/api2/detects/aggregates/detects/GET/v1', headers=header,
                       data=json.dumps(data_dict))
-    if len(s10.json()['resources']) > 0:
-        #pp.pprint(s10.json())  # full json data set!
-        cust_data = s10.json()
-        for bucket in cust_data['resources']:
-            if bucket['name'] == 'status':
-                for value in bucket['buckets']:
-                    if value['label'] == 'new':
-                        if 'count' in value and value['count'] > 0:
-                            alert_str = customer_name + '\n'
-                            alert_str += '*' * len(customer_name) + '\n'
-                            alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
-                #pp.pprint(bucket['buckets'])  # for testing!
-                            return alert_str
+    try:
+        if len(s10.json()['resources']) > 0:
+            #pp.pprint(s10.json())  # full json data set!
+            cust_data = s10.json()
+            for bucket in cust_data['resources']:
+                if bucket['name'] == 'status':
+                    for value in bucket['buckets']:
+                        if value['label'] == 'new':
+                            if 'count' in value and value['count'] > 0:
+                                alert_str = customer_name + '\n'
+                                alert_str += '*' * len(customer_name) + '\n'
+                                alert_str += '[!] {0} alert(s) detected!\n\n'.format(value['count'])
+                    #pp.pprint(bucket['buckets'])  # for testing!
+                                return alert_str
+    except KeyError:
+        if not quiet:
+            return '[!] There was an issue retrieving alerts for {0}. Skipping...\n'.format(customer_name)
+        else:
+            return None
 
 
 def get_machines(customer_name, full=False):
@@ -279,11 +289,11 @@ if __name__ == '__main__':
         timeout = time.time() + (60 * 60 * args.loop)
         set_auth()
         while time.time() < timeout:
-            toruk(args.alerts, args.systems, args.instance, args.outfile)
-            print '[-] Sleeping for 1 minute'
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+            print '[-] Sleeping for {} minute(s)'.format(args.frequency)
             # sleeps for the the number of minutes passed by parameter (default 1 minute)
             time.sleep(args.frequency * 60)
     else:
         # no loop
         set_auth()
-        toruk(args.alerts, args.systems, args.instance, args.outfile)
+        toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
