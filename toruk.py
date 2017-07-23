@@ -115,7 +115,6 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
-        #tmp = {'cid': i}
         try:
             s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json={'cid': i})
             s9 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
@@ -178,28 +177,32 @@ def get_alerts(customer_name, quiet=False):
 
 def get_machines(customer_name, full=False):
     """ gets machine info (props to mccrorysensei for the urls) """
-    machines = falcon.get('https://falcon.crowdstrike.com/api2/devices/queries/devices/v1?sort=last_seen.desc', headers=header)
-    aids = machines.json()['resources']
-    url = 'https://falcon.crowdstrike.com/api2/devices/entities/devices/v1?'
-    for i in aids:
-        url += 'ids={0}&'.format(i)
-    url = url.rstrip('&')
-    machine_info = falcon.get(url, headers=header)
-    machines_str = '\n{0}\n{1}\n'.format(customer_name, '=' * len(customer_name))
-    if full:
-        machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
-        return machines_str
-    else:
-        machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n{4:<37} {5:<25} {6:<15} {7:<22}\n'.format(
-            'Hosts', 'Operating System', 'Public IP', 'Last Seen', '-' * 5, '-' * 16, '-' * 9, '-' * 9)
-        for machine in machine_info.json()['resources']:
-            try:
-                machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n'.format(
-                    machine['hostname'][:35], machine['os_version'][:25], machine['external_ip'][:15], machine['last_seen'][:22])
-            except KeyError as e:
-                machines_str += 'Issue pulling host info: {0}\n'.format(e)
-                continue
-    return machines_str
+    machines = falcon.get('https://falcon.crowdstrike.com/api2/devices/queries/devices/v1?sort=last_seen.desc',
+                          headers=header)
+    try:
+        aids = machines.json()['resources']
+        url = 'https://falcon.crowdstrike.com/api2/devices/entities/devices/v1?'
+        for i in aids:
+            url += 'ids={0}&'.format(i)
+        url = url.rstrip('&')
+        machine_info = falcon.get(url, headers=header)
+        machines_str = '\n{0}\n{1}\n'.format(customer_name, '=' * len(customer_name))
+        if full:
+            machines_str += pp.pformat(machine_info.json()['resources']) + '\n'
+            return machines_str
+        else:
+            machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n{4:<37} {5:<25} {6:<15} {7:<22}\n'.format(
+                'Hosts', 'Operating System', 'Public IP', 'Last Seen', '-' * 5, '-' * 16, '-' * 9, '-' * 9)
+            for machine in machine_info.json()['resources']:
+                try:
+                    machines_str += '{0:<37} {1:<25} {2:<15} {3:<22}\n'.format(machine['hostname'][:35],
+                                    machine['os_version'][:25], machine['external_ip'][:15], machine['last_seen'][:22])
+                except Exception as e:
+                    machines_str += 'Issue pulling host info: {0}\n'.format(e)
+                    continue
+            return machines_str
+    except KeyError:
+        return '[!] There was an issue retrieving system info for {0}. Skipping...\n'.format(customer_name)
 
 
 art = '''
