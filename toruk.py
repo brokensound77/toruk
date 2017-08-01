@@ -139,7 +139,10 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
             else:
                 print get_machines(customer_name)
         elif systems > 1:
-            print get_machines(customer_name, full=True)
+            if outfile is not None:
+                f.write(get_machines(customer_name, full=True))
+            else:
+                print get_machines(customer_name, full=True)
         #####################################################################
         #####################################################################
     if outfile is not None:
