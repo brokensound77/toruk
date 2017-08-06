@@ -8,14 +8,23 @@ import json
 import argparse
 import ConfigParser
 import time
+from os import system
 # temp for testing
 import pprint
 try:
     import requests
 except ImportError:
-    print '[!] Ensure you have requests installed and re-run! (pip install requests)'
-    exit(2)
+    print '[!] missing "requests" module, installing...'
+    system('pip install requests')
+try:
+    from colorama import init, Fore, Back, Style
+except ImportError:
+    print '[!] missing "colorama" module, installing...'
+    system('pip install colorama')
 
+
+# colorama init
+init()
 pp = pprint.PrettyPrinter(indent=4)
 config = ConfigParser.RawConfigParser()
 falcon = requests.Session()
@@ -214,6 +223,31 @@ def get_machines(customer_name, full=False):
         return '[!] There was an issue retrieving system info for {0}. Skipping...\n'.format(customer_name)
 
 
+def main():
+    # must choose something to do
+    if args.systems < 1 and not args.alerts:
+        print 'You must have something for toruk to do (-a or -s), exiting...'
+        exit(0)
+    # loop
+    if args.loop is not None:
+        print '[*] Loop mode selected'
+        print '[*] Running in a loop for {0} hour(s)'.format(args.loop)
+        if args.outfile is not None:
+            print ('[!] It is not advisable to output to a file while in loop mode, as the contents will be overwitten '
+                   'with each loop')
+        timeout = time.time() + (60 * 60 * args.loop)
+        set_auth()
+        while time.time() < timeout:
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+            print '[-] Sleeping for {} minute(s)'.format(args.frequency)
+            # sleeps for the the number of minutes passed by parameter (default 1 minute)
+            time.sleep(args.frequency * 60)
+    else:
+        # no loop
+        set_auth()
+        toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+
+
 art = '''
                                                                                              `/`
                                                                                            -/-.
@@ -287,25 +321,8 @@ title = '''
 if __name__ == '__main__':
     print art
     print title
-    # must choose something to do
-    if args.systems < 1 and not args.alerts:
-        print 'You must have something for toruk to do (-a or -s), exiting...'
+    try:
+        main()
+    except requests.ConnectionError:
+        print '[!] You encountered a connection error, re-run'
         exit(2)
-    # loop
-    if args.loop is not None:
-        print '[*] Loop mode selected'
-        print '[*] Running in a loop for {0} hour(s)'.format(args.loop)
-        if args.outfile is not None:
-            print ('[!] It is not advisable to output to a file while in loop mode, as the contents will be overwitten '
-                   'with each loop')
-        timeout = time.time() + (60 * 60 * args.loop)
-        set_auth()
-        while time.time() < timeout:
-            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-            print '[-] Sleeping for {} minute(s)'.format(args.frequency)
-            # sleeps for the the number of minutes passed by parameter (default 1 minute)
-            time.sleep(args.frequency * 60)
-    else:
-        # no loop
-        set_auth()
-        toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
