@@ -178,7 +178,6 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if outfile is not None:
         f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
         f.close()
-    print info_format('info', '********************************')
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
 
 
