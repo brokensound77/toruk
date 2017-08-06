@@ -9,7 +9,6 @@ import argparse
 import ConfigParser
 import time
 from os import system
-# temp for testing
 import pprint
 try:
     import requests
@@ -195,9 +194,8 @@ def get_alerts(customer_name, quiet=False):
                     for value in bucket['buckets']:
                         if value['label'] == 'new':
                             if 'count' in value and value['count'] > 0:
-                                alert_str = customer_name + '\n'
-                                alert_str += '*' * len(customer_name) + '\n'
-                                alert_str += info_format('alert', '{0} alert(s) detected!\n'.format(value['count']))
+                                alert_str = info_format('alert', '{0} alert(s) detected! Instance: \n'.format(value['count']))
+                                alert_str += '----> {0}'.format(customer_name)
                     #pp.pprint(bucket['buckets'])  # for testing!
                                 return alert_str
     except KeyError:
