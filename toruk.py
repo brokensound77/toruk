@@ -320,7 +320,9 @@ title = '''
 
 if __name__ == '__main__':
     print art
-    print title
+    print Fore.LIGHTYELLOW_EX + title + Style.RESET_ALL
+    print Fore.LIGHTGREEN_EX + 'OH LOOK THE COLOR WORKS!!!!!!' + Style.RESET_ALL
+    exit(0)
     try:
         main()
     except requests.ConnectionError:
