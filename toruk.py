@@ -57,14 +57,16 @@ args = parser.parse_args()
 
 def info_format(print_type, text):
     # info, prompt, alert, sleep
+    lb = '{0}[{1}'.format(Fore.LIGHTGREEN_EX, Style.RESET_ALL)
+    rb = '{0}]{1}'.format(Fore.LIGHTGREEN_EX, Style.RESET_ALL)
     if print_type == 'info':
-        return '[{0}*{1}] {2}'.format(Fore.LIGHTGREEN_EX, Style.RESET_ALL, text)
+        return '{0}{1}*{2}{3} {4}'.format(lb, Fore.LIGHTGREEN_EX, Style.RESET_ALL, rb, text)
     elif print_type == 'prompt':
-        return '[{0}${1}] {2}'.format(Fore.LIGHTYELLOW_EX, Style.RESET_ALL, text)
+        return '{0}{1}${2}{3} {4}'.format(lb, Fore.LIGHTYELLOW_EX, Style.RESET_ALL, rb, text)
     elif print_type == 'alert':
-        return '[{0}!{1}] {2}'.format(Fore.LIGHTRED_EX, Style.RESET_ALL, text)
+        return '{0}{1}!{2}{3} {4}'.format(lb, Fore.LIGHTRED_EX, Style.RESET_ALL, rb, text)
     elif print_type == 'sleep':
-        return '[-] {0}'.format(text)
+        return '{0}-{1} {2}'.format(lb, rb, text)
 
 
 def set_auth():
@@ -116,6 +118,7 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     ###################################
     print info_format('info', '{0} customer instances detected'.format(len(customer_list)))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
+    print info_format('info', '********************************')
     # outfile handling
     if outfile is not None:
         try:
@@ -175,6 +178,7 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if outfile is not None:
         f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
         f.close()
+    print info_format('info', '********************************')
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
 
 
@@ -332,7 +336,7 @@ title = '''
 
 if __name__ == '__main__':
     print Fore.LIGHTRED_EX + art + Style.RESET_ALL
-    print Fore.LIGHTWHITE_EX + title + Style.RESET_ALL
+    print title
     try:
         main()
     except requests.ConnectionError:
