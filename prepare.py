@@ -28,13 +28,15 @@ if len(missing) > 0:
         print '[!] You are missing some dependencies! {0}'.format(missing)
     answer = ''
     for i in xrange(3):
-        answer = raw_input('[$] Do you want to continue with installation [y/N]? ')
+        answer = raw_input('[$] Do you want to proceed with installation [y/N]? ')
         if answer == 'y':
             # install
             if 'requests' in missing:
+                print '[*] Running: {0} requests'.format(command)
                 system(command + 'requests')
                 import requests
             if 'colorama' in missing:
+                print '[*] Running: {0} colorama'.format(command)
                 system(command + 'colorama')
                 from colorama import init, Fore, Back, Style
             break
