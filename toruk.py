@@ -8,20 +8,8 @@ import json
 import argparse
 import ConfigParser
 import time
-from os import system
 import pprint
-try:
-    import requests
-except ImportError:
-    print '[!] missing "requests" module, installing...'
-    system('pip install requests')
-    import requests
-try:
-    from colorama import init, Fore, Back, Style
-except ImportError:
-    print '[!] missing "colorama" module, installing...'
-    system('pip install colorama')
-    from colorama import init, Fore, Back, Style
+from prepare import *
 
 
 # colorama init
