@@ -72,7 +72,7 @@ def set_auth():
             exit(2)
     else:
         FALCON_UNAME = raw_input(info_format('prompt', 'Enter FH Username (email address): '))
-        FALCON_PASS = getpass(prompt=info_format('prompt', 'Enter FH Password: '))
+        FALCON_PASS = getpass(prompt='[$] Enter FH Password: ')
 
 
 def falcon_auth():
@@ -187,7 +187,7 @@ def get_alerts(customer_name, quiet=False):
                         if value['label'] == 'new':
                             if 'count' in value and value['count'] > 0:
                                 alert_str = info_format('alert', '{0} alert(s) detected! Instance: \n'.format(value['count']))
-                                alert_str += '----> {0}'.format(customer_name)
+                                alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
                     #pp.pprint(bucket['buckets'])  # for testing!
                                 return alert_str
     except KeyError:
