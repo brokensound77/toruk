@@ -47,14 +47,15 @@ def info_format(print_type, text):
     # info, prompt, alert, sleep
     lb = '{0}[{1}'.format(Fore.LIGHTGREEN_EX, Style.RESET_ALL)
     rb = '{0}]{1}'.format(Fore.LIGHTGREEN_EX, Style.RESET_ALL)
+    new_text = Fore.LIGHTWHITE_EX + text + Style.RESET_ALL
     if print_type == 'info':
-        return '{0}{1}*{2}{3} {4}'.format(lb, Fore.LIGHTGREEN_EX, Style.RESET_ALL, rb, text)
+        return '{0}{1}*{2}{3} {4}'.format(lb, Fore.LIGHTGREEN_EX, Style.RESET_ALL, rb, new_text)
     elif print_type == 'prompt':
-        return '{0}{1}${2}{3} {4}'.format(lb, Fore.LIGHTYELLOW_EX, Style.RESET_ALL, rb, text)
+        return '{0}{1}${2}{3} {4}'.format(lb, Fore.LIGHTYELLOW_EX, Style.RESET_ALL, rb, new_text)
     elif print_type == 'alert':
-        return '{0}{1}!{2}{3} {4}'.format(lb, Fore.LIGHTRED_EX, Style.RESET_ALL, rb, text)
+        return '{0}{1}!{2}{3} {4}'.format(lb, Fore.LIGHTRED_EX, Style.RESET_ALL, rb, new_text)
     elif print_type == 'sleep':
-        return '{0}-{1} {2}'.format(lb, rb, text)
+        return '{0}-{1} {2}'.format(lb, rb, new_text)
 
 
 def set_auth():

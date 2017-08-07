@@ -32,11 +32,11 @@ if len(missing) > 0:
         if answer == 'y':
             # install
             if 'requests' in missing:
-                print '[*] Running: {0} requests'.format(command)
+                print '[*] Running: {0}requests'.format(command)
                 system(command + 'requests')
                 import requests
             if 'colorama' in missing:
-                print '[*] Running: {0} colorama'.format(command)
+                print '[*] Running: {0}colorama'.format(command)
                 system(command + 'colorama')
                 from colorama import init, Fore, Back, Style
             break
