@@ -187,8 +187,8 @@ def get_alerts(customer_name, quiet=False):
                     for value in bucket['buckets']:
                         if value['label'] == 'new':
                             if 'count' in value and value['count'] > 0:
-                                alert_str = info_format('alert', '{0}{1}{2} alert(s) detected! Instance: \n'.format(
-                                    Fore.LIGHTRED_EX, Fore.LIGHTWHITE_EX, value['count']))
+                                alert_str = info_format('alert', '{0}{1}{2} alert(s) detected!\n'.format(
+                                    Fore.LIGHTRED_EX, value['count'], Fore.LIGHTWHITE_EX))
                                 alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
                     #pp.pprint(bucket['buckets'])  # for testing!
                                 return alert_str
