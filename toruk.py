@@ -105,7 +105,8 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if customer_cid is not None:
         customer_list = [customer_cid]
     ###################################
-    print info_format('info', '{0} customer instances detected'.format(len(customer_list)))
+    print info_format('info', '{0}{1}{2} customer instances detected'.format(Fore.LIGHTGREEN_EX, len(customer_list),
+                                                                             Fore.LIGHTWHITE_EX))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
     print info_format('info', '********************************')
     # outfile handling
