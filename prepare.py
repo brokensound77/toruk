@@ -22,6 +22,8 @@ if len(missing) > 0:
         if getuid() != 0:
             print '[!] You are missing some dependencies which require root to install! {0}'.format(missing)
             command = 'sudo pip install '
+        else:
+            print '[!] You are missing some dependencies! {0}'.format(missing)
     else:
         print '[!] You are missing some dependencies! {0}'.format(missing)
     answer = ''
