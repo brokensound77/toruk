@@ -227,31 +227,6 @@ def get_machines(customer_name, full=False):
         return info_format('alert', 'There was an issue retrieving system info for {0}. Skipping...\n'.format(customer_name))
 
 
-def main():
-    # must choose something to do
-    if args.systems < 1 and not args.alerts:
-        print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
-        exit(0)
-    # loop
-    if args.loop is not None:
-        print info_format('info', 'Loop mode selected')
-        print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
-        if args.outfile is not None:
-            print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents '
-                                       'will be overwritten with each loop')
-        timeout = time.time() + (60 * 60 * args.loop)
-        set_auth()
-        while time.time() < timeout:
-            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-            print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
-            # sleeps for the the number of minutes passed by parameter (default 1 minute)
-            time.sleep(args.frequency * 60)
-    else:
-        # no loop
-        set_auth()
-        toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-
-
 art = '''
                                                                                              `/`
                                                                                            -/-.
@@ -322,11 +297,32 @@ title = '''{0}
 '''.format(Fore.LIGHTWHITE_EX, Fore.LIGHTRED_EX, Fore.LIGHTWHITE_EX, Style.RESET_ALL)
 
 
-if __name__ == '__main__':
+def main():
     print Fore.LIGHTRED_EX + art + Style.RESET_ALL
     print title
+    # must choose something to do
+    if args.systems < 1 and not args.alerts:
+        print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
+        exit(0)
+    # loop
     try:
-        main()
+        if args.loop is not None:
+            print info_format('info', 'Loop mode selected')
+            print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
+            if args.outfile is not None:
+                print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
+                                           ' will be overwritten with each loop')
+            timeout = time.time() + (60 * 60 * args.loop)
+            set_auth()
+            while time.time() < timeout:
+                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+                print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
+                # sleeps for the the number of minutes passed by parameter (default 1 minute)
+                time.sleep(args.frequency * 60)
+        else:
+            # no loop
+            set_auth()
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
     except requests.ConnectionError:
         print info_format('alert', 'You encountered a connection error, re-run')
         exit(2)
