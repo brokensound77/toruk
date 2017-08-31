@@ -326,3 +326,7 @@ def main():
     except requests.ConnectionError:
         print info_format('alert', 'You encountered a connection error, re-run')
         exit(2)
+
+        
+if __name__ == '__main__':
+    main()
