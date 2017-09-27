@@ -337,27 +337,31 @@ def main():
         print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
         exit(0)
     # loop
-    try:
-        if args.loop is not None:
-            print info_format('info', 'Loop mode selected')
-            print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
-            if args.outfile is not None:
-                print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
-                                           ' will be overwritten with each loop')
-            timeout = time.time() + (60 * 60 * args.loop)
-            set_auth()
-            while time.time() < timeout:
+    if args.loop is not None:
+        print info_format('info', 'Loop mode selected')
+        print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
+        if args.outfile is not None:
+            print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
+                                       ' will be overwritten with each loop')
+        timeout = time.time() + (60 * 60 * args.loop)
+        set_auth()
+        while time.time() < timeout:
+            try:
                 toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-                print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
-                # sleeps for the the number of minutes passed by parameter (default 1 minute)
-                time.sleep(args.frequency * 60)
-        else:
-            # no loop
-            set_auth()
+            except requests.ConnectionError:
+                print info_format('alert', 'You encountered a connection error, re-running...')
+                pass
+            print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
+            # sleeps for the the number of minutes passed by parameter (default 1 minute)
+            time.sleep(args.frequency * 60)
+    # no loop
+    else:
+        set_auth()
+        try:
             toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-    except requests.ConnectionError:
-        print info_format('alert', 'You encountered a connection error, re-run')
-        exit(2)
+        except requests.ConnectionError:
+            print info_format('alert', 'You encountered a connection error, re-run')
+            exit(2)
 
 
 if __name__ == '__main__':
