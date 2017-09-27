@@ -116,26 +116,27 @@ You will then be prompted to enter creds and 2fa
 
 ### Alerts
 ```
-python toruk.py -a -c /location/of/config.cfg
+python toruk.py -a -l 1 -c /location/of/config.cfg
 .
 .
 [*] Credentials read from config file
 [$] Enter FH 2FA: 123456
-[*] 500 customer instances detected
-[*] Performing search (01:10:41L)...
-Customer A
-**********
-[!] 2 alert(s) detected!
-
-Customer D
-**********
-[!] 5 alert(s) detected!
-
-Customer Z
-**********
-[!] 1 alert(s) detected!
-
-[*] Search complete (01:12:58L)
+[*] 201 customer instances detected
+[*] Performing search (11:24:15L)...
+[*] ********************************
+[!] Low alert on Joes-Desktop for suspicious_activity (2017-07-20T13:11:08Z)!
+----> Joe's Widget Company
+[!] Low alert on Martha-Laptop for suspicious_activity (2017-07-20T14:10:12Z)!
+----> Workers United
+[*] Search complete (10:16:17L)
+[-] Sleeping for 1 minute(s)
+[*] 201 customer instances detected
+[*] Performing search (12:37:28L)...
+[*] ********************************
+[!] Low alert on Joes-Desktop for suspicious_activity (2017-07-20T13:11:08Z)!
+----> Joe's Widget Company
+[!] You encountered a connection error, re-running...
+[-] Sleeping for 1 minute(s)
 ```
 
 ### System Info
