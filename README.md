@@ -70,6 +70,22 @@ Crowdstrike Falcon Host script for iterating through instances to get alert data
               **********************************************************
 ```
 
+## Setup
+
+download and unzip or git clone
+
+```
+cd toruk-master
+pip install .
+toruk -a
+```
+OR
+```
+cd toruk-master/toruk
+python toruk -a
+```
+
+
 ## Usage
 
 ```
