@@ -144,7 +144,8 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
         #####################################################################
         # alerts
         if alerts:
-            tmp_alerts = get_alerts(customer_name, quiet)
+            #tmp_alerts = get_alerts(customer_name, quiet)
+            tmp_alerts = get_alerts_detailed(customer_name, quiet)
             if tmp_alerts is not None:
                 if outfile is not None:
                     f.write(tmp_alerts)
@@ -190,6 +191,37 @@ def get_alerts(customer_name, quiet=False):
                                 alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
                     # print(json.dumps(bucket['buckets'], indent=4))  # for testing!
                                 return alert_str
+    except KeyError:
+        if not quiet:
+            return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
+        else:
+            return None
+
+
+def get_alerts_detailed(customer_name, quiet=False, full=False):
+    """ more detailed version of alert information """
+    s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=20&offset=0&q=&sort=last_behavior|desc',
+                     headers=header)
+    try:
+        resource_list = s11.json()['resources']
+        s12 = falcon.post('https://falcon.crowdstrike.com/api2/detects/entities/summaries/GET/v1',
+                          headers=header, data=json.dumps({'ids': resource_list}))
+        #print json.dumps(s12.json()['resources'], indent=4)
+        alert_str = ''
+        alert_count = 0
+        for alert in s12.json()['resources']:
+            if alert['status'] == 'new':
+                alert_count += 1
+                alert_host = alert['device']['hostname']
+                alert_severity = alert['max_severity_displayname']
+                alert_reason = alert['behaviors'][0]['scenario']
+                alert_time = alert['behaviors'][0]['timestamp']
+                alert_str += info_format('alert', '{0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!\n'.format(
+                    Fore.LIGHTYELLOW_EX, alert_severity, Fore.LIGHTGREEN_EX, alert_host, Fore.LIGHTRED_EX, alert_reason,
+                    Style.RESET_ALL, alert_time))
+        if alert_count > 0:
+            alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
+            return alert_str
     except KeyError:
         if not quiet:
             return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
@@ -305,28 +337,32 @@ def main():
         print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
         exit(0)
     # loop
-    try:
-        if args.loop is not None:
-            print info_format('info', 'Loop mode selected')
-            print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
-            if args.outfile is not None:
-                print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
-                                           ' will be overwritten with each loop')
-            timeout = time.time() + (60 * 60 * args.loop)
-            set_auth()
-            while time.time() < timeout:
+    if args.loop is not None:
+        print info_format('info', 'Loop mode selected')
+        print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
+        if args.outfile is not None:
+            print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
+                                       ' will be overwritten with each loop')
+        timeout = time.time() + (60 * 60 * args.loop)
+        set_auth()
+        while time.time() < timeout:
+            try:
                 toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-                print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
-                # sleeps for the the number of minutes passed by parameter (default 1 minute)
-                time.sleep(args.frequency * 60)
-        else:
-            # no loop
-            set_auth()
+            except requests.ConnectionError:
+                print info_format('alert', 'You encountered a connection error, re-running...')
+                pass
+            print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
+            # sleeps for the the number of minutes passed by parameter (default 1 minute)
+            time.sleep(args.frequency * 60)
+    # no loop
+    else:
+        set_auth()
+        try:
             toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
-    except requests.ConnectionError:
-        print info_format('alert', 'You encountered a connection error, re-run')
-        exit(2)
+        except requests.ConnectionError:
+            print info_format('alert', 'You encountered a connection error, re-run')
+            exit(2)
 
-        
+
 if __name__ == '__main__':
     main()
