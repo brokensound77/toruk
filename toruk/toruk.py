@@ -139,12 +139,16 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
             header['X-CSRF-Token'] = s9.json()['csrf_token']
         except requests.exceptions.ConnectionError:
             continue
+        except KeyError:
+            print info_format('info', 'Session timed out. Resetting...')
+            falcon_auth()
+            continue
         #####################################################################
         # insert per instance code below
         #####################################################################
         # alerts
         if alerts:
-            #tmp_alerts = get_alerts(customer_name, quiet)
+            #tmp_alerts = get_alerts(customer_name, quiet)  # reserved as a backup method
             tmp_alerts = get_alerts_detailed(customer_name, quiet)
             if tmp_alerts is not None:
                 if outfile is not None:
