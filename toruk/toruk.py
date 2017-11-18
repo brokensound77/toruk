@@ -6,6 +6,8 @@ import ConfigParser
 from getpass import getpass
 import json
 import time
+import os
+import sys
 
 from colorama import init, Fore, Back, Style
 import requests
@@ -27,6 +29,13 @@ header = {
 FALCON_UNAME = ''
 FALCON_PASS = ''
 
+
+class MasterAlerts(object):
+    def __init__(self):
+        self.alerts_old_list = []
+
+
+master_alerts = MasterAlerts()
 
 parser.add_argument('-a', '--alerts', action='store_true', help='retrieves new alerts')
 parser.add_argument('-s', '--systems', action='count', default=0,
@@ -54,6 +63,13 @@ def info_format(print_type, text):
         return '{0}{1}!{2}{3} {4}'.format(lb, Fore.LIGHTRED_EX, Style.RESET_ALL, rb, new_text)
     elif print_type == 'sleep':
         return '{0}-{1} {2}'.format(lb, rb, new_text)
+
+
+def clear_screen():
+    if sys.platform == 'win32':
+        os.system('cls')
+    else:
+        os.system('clear')
 
 
 def set_auth():
@@ -90,6 +106,8 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if r5.status_code != 200:
         falcon_auth()
         r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
+    clear_screen()
+    print title
     ########################
     # retrieve customer list
     ########################
@@ -107,6 +125,9 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
                                                                              Fore.LIGHTWHITE_EX))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
     print info_format('info', '********************************')
+    for residual_alerts in master_alerts.alerts_old_list:
+        print residual_alerts
+    alerts_new_list = []
     # outfile handling
     if outfile is not None:
         try:
@@ -129,10 +150,16 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
+    count_cust = len(customer_list)
+    count = 1
     for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
+        sys.stdout.write('\r [{0}/{1}] {2}{3}'.format(count, count_cust, customer_name, ' ' * 25))
+        sys.stdout.flush()
+        print '\r',
+        count += 1
         try:
             s8 = falcon.post('https://falcon.crowdstrike.com/api2/auth/switch-customer', headers=header, json={'cid': i})
             s9 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
@@ -154,7 +181,9 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
                 if outfile is not None:
                     f.write(tmp_alerts)
                 else:
-                    print tmp_alerts
+                    if tmp_alerts not in master_alerts.alerts_old_list:
+                        print tmp_alerts
+                    alerts_new_list.append(tmp_alerts)
         # systems
         if systems == 1:
             if outfile is not None:
@@ -171,6 +200,7 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if outfile is not None:
         f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
         f.close()
+    master_alerts.alerts_old_list = list(alerts_new_list)
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
 
 
@@ -334,6 +364,7 @@ title = '''{0}
 
 
 def main():
+    clear_screen()
     print Fore.LIGHTRED_EX + art + Style.RESET_ALL
     print title
     # must choose something to do
