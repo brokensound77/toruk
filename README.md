@@ -130,13 +130,6 @@ python toruk.py -a -l 1 -c /location/of/config.cfg
 ----> Workers United
 [*] Search complete (10:16:17L)
 [-] Sleeping for 1 minute(s)
-[*] 201 customer instances detected
-[*] Performing search (12:37:28L)...
-[*] ********************************
-[!] Low alert on Joes-Desktop for suspicious_activity (2017-07-20T13:11:08Z)!
-----> Joe's Widget Company
-[!] You encountered a connection error, re-running...
-[-] Sleeping for 1 minute(s)
 ```
 
 ### System Info
@@ -190,3 +183,16 @@ asfs43-web                            Windows Server 2012 R2    50.123.456.177  
                                       
 [*] Search complete (01:19:29L)
 ```
+
+## Config File
+
+### Usage
+
+```
+toruk -c path/to/config.cfg
+```
+
+### Configuration File
+
+If config file is used, then username and password must both be populated. Use of OTP is optional.
+Instructions for setting up for use with OTP can be found in the [sample](https://github.com/brokensound77/toruk/blob/master/toruk/sample-toruk-cfg.cfg) config file
