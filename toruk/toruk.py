@@ -8,6 +8,7 @@ import json
 import time
 import os
 import sys
+import pyotp
 
 from colorama import init, Fore, Back, Style
 import requests
@@ -28,6 +29,7 @@ header = {
         }
 FALCON_UNAME = ''
 FALCON_PASS = ''
+FALCON_OTP = ''
 
 
 class MasterAlerts(object):
@@ -75,11 +77,13 @@ def clear_screen():
 def set_auth():
     global FALCON_UNAME
     global FALCON_PASS
+    global FALCON_OTP
     if args.config_file is not None:
         try:
             config.read(args.config_file)
             FALCON_UNAME = str(config.get('Falconhost', 'username'))
             FALCON_PASS = str(config.get('Falconhost', 'password'))
+            FALCON_OTP = str(config.get('Falconhost', 'otp'))
             print info_format('info', 'Credentials read from config file')
         except Exception as e:
             print info_format('alert', 'Check your config file and rerun the program, exiting...\n')
@@ -91,10 +95,15 @@ def set_auth():
 
 def falcon_auth():
     """ Authentication Process """
+    global FALCON_OTP
     falcon.get('https://falcon.crowdstrike.com/login/', headers=header)
     r2 = falcon.post('https://falcon.crowdstrike.com/api2/auth/csrf', headers=header)
     header['X-CSRF-Token'] = r2.json()['csrf_token']
-    fh_2fa = raw_input(info_format('prompt', 'Enter FH 2FA: '))
+    if FALCON_OTP == '':
+        fh_2fa = raw_input(info_format('prompt', 'Enter FH 2FA: '))
+    else:
+        totp = pyotp.TOTP(FALCON_OTP)
+        fh_2fa = totp.now()
     auth_data = {'username': FALCON_UNAME, 'password': FALCON_PASS, '2fa': fh_2fa}
     falcon.post('https://falcon.crowdstrike.com/auth/login', headers=header, data=json.dumps(auth_data))
     falcon.get('https://falcon.crowdstrike.com')
