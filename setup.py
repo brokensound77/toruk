@@ -5,7 +5,8 @@ import toruk
 
 REQUIRES = [
     'colorama>=0.3.9',
-    'requests>=2.18.4'
+    'requests>=2.18.4',
+    'pyotp>=2.2.6'
 ]
 
 setup(
