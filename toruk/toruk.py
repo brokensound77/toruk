@@ -164,15 +164,19 @@ def set_auth():
     if args.config_file is not None:
         try:
             config.read(args.config_file)
-            FALCON_UNAME = str(config.get('Falconhost', 'username'))
-            FALCON_PASS = str(config.get('Falconhost', 'password'))
-            FALCON_OTP = str(config.get('Falconhost', 'otp'))
+            if config.has_option('Falconhost', 'username'):
+                FALCON_UNAME = str(config.get('Falconhost', 'username'))
+            if config.has_option('Falconhost', 'password'):
+                FALCON_PASS = str(config.get('Falconhost', 'password'))
+            if config.has_option('Falconhost', 'otp'):
+                FALCON_OTP = str(config.get('Falconhost', 'otp'))
             print info_format('info', 'Credentials read from config file')
         except Exception as e:
             print info_format('alert', 'Check your config file and rerun the program, exiting...\n')
             exit(2)
-    else:
+    if FALCON_UNAME == '':
         FALCON_UNAME = raw_input(info_format('prompt', 'Enter FH Username (email address): '))
+    if FALCON_PASS == '':
         FALCON_PASS = getpass(prompt='[$] Enter FH Password: ')
 
 
@@ -192,7 +196,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, outfile, quiet, full):
+def toruk(alerts, systems, customer_cid, outfile, quiet, full, ignore=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -213,8 +217,16 @@ def toruk(alerts, systems, customer_cid, outfile, quiet, full):
     if customer_cid is not None:
         customer_list = [customer_cid]
     ###################################
-    print info_format('info', '{0}{1}{2} customer instances detected'.format(Fore.LIGHTGREEN_EX, len(customer_list),
-                                                                             Fore.LIGHTWHITE_EX))
+    # verify ignored cid's from config file are actually within customer list
+    ignore_info = ''
+    if ignore is not None:
+        ignore_count = 0
+        for entry in ignore:
+            if entry in customer_list:
+                ignore_count += 1
+        ignore_info = '({0} ignored)'.format(ignore_count)
+    print info_format('info', '{0}{1}{2} customer instances detected {3}'.format(Fore.LIGHTGREEN_EX, len(customer_list),
+                                                                             Fore.LIGHTWHITE_EX, ignore_info))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
     print info_format('info', '********************************')
     for residual_alerts in master_alerts.alerts_old_list:
@@ -245,10 +257,16 @@ def toruk(alerts, systems, customer_cid, outfile, quiet, full):
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
-    count_cust = len(customer_list)
+    if ignore is not None:
+        count_cust = len(customer_list) - ignore_count
+    else:
+        count_cust = len(customer_list)
     count = 1
     for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
+        if ignore is not None:
+            if i in ignore:
+                continue
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
         try:
@@ -368,7 +386,7 @@ def get_alerts_detailed(customer_name, quiet=False, full=False):
             if full:
                 return alert_list_full
             return alert_str
-    except KeyError:
+    except Exception:  #KeyError:
         if not quiet:
             return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
         else:
@@ -483,6 +501,18 @@ def main():
     if args.systems < 1 and not args.alerts:
         print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
         exit(0)
+    # parse ignore list from configs
+    ignore_list = None
+    if args.config_file is not None:
+        try:
+            config.read(args.config_file)
+            if config.has_option('Falconhost', 'ignore'):
+                ignore_list = list(config.get('Falconhost', 'ignore').split(','))
+                if ignore_list[0] == '':
+                    ignore_list = None
+        except Exception as e:
+            print info_format('alert', 'Could not parse ignore section of config file: {0}').format(e)
+    #print 'DEBUG: {}'.format(ignore_list)
     # loop
     if args.loop is not None:
         print info_format('info', 'Loop mode selected')
@@ -494,7 +524,7 @@ def main():
         set_auth()
         while time.time() < timeout:
             try:
-                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed)
+                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, ignore_list)
             except requests.ConnectionError:
                 print info_format('alert', 'You encountered a connection error, re-running...')
                 pass
@@ -505,7 +535,7 @@ def main():
     else:
         set_auth()
         try:
-            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed)
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, ignore_list)
         except requests.ConnectionError:
             print info_format('alert', 'You encountered a connection error, re-run')
             exit(2)
