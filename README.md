@@ -184,9 +184,9 @@ asfs43-web                            Windows Server 2012 R2    50.123.456.177  
 [*] Search complete (01:19:29L)
 ```
 
-## Config File
+## Detailed Usage
 
-### Usage
+### Config File
 
 ```
 toruk -c path/to/config.cfg
@@ -194,5 +194,53 @@ toruk -c path/to/config.cfg
 
 ### Configuration File
 
-If config file is used, then username and password must both be populated. Use of OTP is optional.
-Instructions for setting up for use with OTP can be found in the [sample](https://github.com/brokensound77/toruk/blob/master/toruk/sample-toruk-cfg.cfg) config file
+Usage of all fields within the config file are optional. Instructions for setting up for use with OTP can be found in the [sample](https://github.com/brokensound77/toruk/blob/master/toruk/sample-toruk-cfg.cfg) config file.
+
+Updating the `ignore` field with comma (no space) separated CID's will force toruk to skip over those instances
+
+ex:
+
+config file:
+
+`ignore=1234567890abcdef01234567890abcde,12abc67890abcdef01234abc890abcde`
+
+```
+toruk -c /path/to/config.cfg
+```
+
+### Detailed Alerts
+
+`toruk -ad`
+
+```
+[!] NEW Bob's Widget Company - High alert on BOB-W-12-1 for NGAV (2017-10-12T10:20:10Z)!
+                cid: abcd123aceae439da8559b066cdef321 aid: cd7d0daabcdef77c45bb49b887654321
+    SYSTEM INFO:
+           username: bob.widgeter (S-1-5-21-1232980321-2341652234-1233843123-1004)
+                 os: Windows Server 2008 R2
+        description: Server
+             domain: Widget.Widget
+                 ou: [u'Widget', u'Servers']
+         victim IPs:
+                private: 10.1.2.34
+                 public: 123.45.67.89
+    ALERT INFO:
+           filename: SuspectFile.exe
+             hashes:
+                sha256: abc12365de31ca6adf41d7e1e91f50daabcdb48966a56509c2421d123dcdef77
+                   md5: abcdef6bd89a11a03846f396dcd12345
+            cmdline: "C:\Windows\System32\LegitFolder\SuspectFile.exe"
+    ALERT PARENT INFO:
+            cmdline: C:\Windows\system32\svchost.exe -k netsvcs
+             hashes:
+                sha256: 11122234565c33a47baa3ddfa089fad17bc8e362f21e835d7123456789abcdef
+                   md5: ab436cd5e24105b35e986c0987654321
+```
+
+### Status
+
+Can specify one or two statuses to search for: 'new' or 'in_progress'
+
+`toruk -a --status new in_progress`
+
+
