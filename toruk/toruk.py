@@ -49,6 +49,9 @@ parser.add_argument('-l', '--loop', type=int, choices=[1,2,3,4,5,6,7,8,9,10,11,1
                     help='runs toruk in a loop, for the number of hours passed')
 parser.add_argument('-f', '--frequency', type=int, default=1, help='frequency (in minutes) for the loop to resume')
 parser.add_argument('-q', '--quiet', action='store_true', help='suppresses errors from alert retrieval failures')
+parser.add_argument('-d', '--detailed', action='store_true', help='returns detailed alert information')
+parser.add_argument('--status', choices=['new', 'in_progress'], nargs='+', default=['new'],
+                    help='searches for status matching this argument only; can pass multiple arguments')
 args = parser.parse_args()
 
 
@@ -67,6 +70,91 @@ def info_format(print_type, text):
         return '{0}-{1} {2}'.format(lb, rb, new_text)
 
 
+def enum_alert(raw_data):
+    flat_dict = {}
+    for k, v in raw_data.items():
+        # hostinfo
+        if k == 'hostinfo':
+            for k2, v2 in v.items():
+                flat_dict[k2] = v2
+                # print '{}: {}'.format(k2, v2)  # debug
+        # device
+        elif k == 'device':
+            for k2, v2 in v.items():
+                if k2 == 'status':
+                    k2 = 'device_status'
+                flat_dict[k2] = v2
+                # print '{}: {}'.format(k2, v2)  # debug
+        # behaviors
+        elif k == 'behaviors':
+            for item2 in v:
+                for k2, v2 in item2.items():
+                    if k2 == 'parent_details':
+                        for k3, v3 in v2.items():
+                            flat_dict[k3] = v3
+                            # print '{}: {}'.format(k3, v3)  # debug
+                    else:
+                        flat_dict[k2] = v2
+                        # print '{}: {}'.format(k2, v2)  # debug
+        else:
+            flat_dict[k] = v
+            # print '{}: {}'.format(k, v)  # debug
+    return flat_dict
+
+
+def parse_alert(customer_name, raw_data):
+    flat_dict = enum_alert(raw_data)
+    # generate alert link
+    #part1 = flat_dict['detection_id'].split(':')  # 1,2
+    #part2 = flat_dict['triggering_process_graph_id'].split(':') # 2
+    #alert_link = 'https://falcon.crowdstrike.com/activity/detections/detail/{0}/{1}?pid={2}'.format(
+    #    part1[1], part1[2], part2[2])
+
+    # description
+    description = ('{25} {23}{20}{24} - {21}{0}{24} alert on {22}{1}{24} for {23}{2}{24} ({3})!\n'
+                    '\t{21}        cid{24}: {4} {21}aid{24}: {5}\n'
+                    '    {22}SYSTEM INFO{24}:\n'
+                    '\t{21}   username{24}: {6}\n'
+                    '\t{21}         os{24}: {7}\n'
+                    '\t{21}description{24}: {8}\n'
+                    '\t{21}     domain{24}: {9}\n'
+                    '\t{21}         ou{24}: {10}\n'
+                    '\t{21} victim IPs{24}: \n\t\tprivate: {11}\n\t\t public: {12}\n'
+                    '    {22}ALERT INFO{24}:\n'
+                    '\t{21}   filename{24}: {13}\n'
+                    '\t{21}     hashes{24}: \n\t\tsha256: {14}\n\t\t   md5: {15}\n'
+                    '\t{21}    cmdline{24}: {16}\n'
+                    '    {22}ALERT PARENT INFO{24}:\n'
+                    '\t{21}    cmdline{24}: {17}\n'
+                    '\t{21}     hashes{24}: \n\t\tsha256: {18}\n\t\t   md5: {19}'.format(
+                        flat_dict.get('max_severity_displayname'),
+                        flat_dict.get('hostname'),
+                        flat_dict.get('scenario'),
+                        flat_dict.get('timestamp'),
+                        flat_dict.get('cid'),
+                        flat_dict.get('device_id'),
+                        '{0} ({1})'.format(flat_dict.get('user_name'), flat_dict.get('user_id')),
+                        flat_dict.get('os_version'),
+                        flat_dict.get('product_type_desc'),
+                        flat_dict.get('machine_domain'),
+                        flat_dict.get('ou'),
+                        flat_dict.get('local_ip'),
+                        flat_dict.get('external_ip'),
+                        flat_dict.get('filename'),
+                        flat_dict.get('sha256'),
+                        flat_dict.get('md5'),
+                        flat_dict.get('cmdline'),
+                        flat_dict.get('parent_cmdline'),
+                        flat_dict.get('parent_sha256'),
+                        flat_dict.get('parent_md5'),
+                        customer_name,
+                        # 21                22                  23                  24
+                        Fore.LIGHTYELLOW_EX, Fore.LIGHTGREEN_EX, Fore.LIGHTRED_EX, Style.RESET_ALL,
+                        flat_dict.get('status').upper().replace('_', '-'),
+                        ))
+    return description
+
+
 def clear_screen():
     if sys.platform == 'win32':
         os.system('cls')
@@ -81,15 +169,19 @@ def set_auth():
     if args.config_file is not None:
         try:
             config.read(args.config_file)
-            FALCON_UNAME = str(config.get('Falconhost', 'username'))
-            FALCON_PASS = str(config.get('Falconhost', 'password'))
-            FALCON_OTP = str(config.get('Falconhost', 'otp'))
+            if config.has_option('Falconhost', 'username'):
+                FALCON_UNAME = str(config.get('Falconhost', 'username'))
+            if config.has_option('Falconhost', 'password'):
+                FALCON_PASS = str(config.get('Falconhost', 'password'))
+            if config.has_option('Falconhost', 'otp'):
+                FALCON_OTP = str(config.get('Falconhost', 'otp'))
             print info_format('info', 'Credentials read from config file')
         except Exception as e:
             print info_format('alert', 'Check your config file and rerun the program, exiting...\n')
             exit(2)
-    else:
+    if FALCON_UNAME == '':
         FALCON_UNAME = raw_input(info_format('prompt', 'Enter FH Username (email address): '))
+    if FALCON_PASS == '':
         FALCON_PASS = getpass(prompt='[$] Enter FH Password: ')
 
 
@@ -109,7 +201,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, outfile, quiet):
+def toruk(alerts, systems, customer_cid, outfile, quiet, full, status, ignore=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -130,12 +222,26 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     if customer_cid is not None:
         customer_list = [customer_cid]
     ###################################
-    print info_format('info', '{0}{1}{2} customer instances detected'.format(Fore.LIGHTGREEN_EX, len(customer_list),
-                                                                             Fore.LIGHTWHITE_EX))
+    # status
+    print info_format('info', 'searching for statuses: {0}{1}{2}'.format(
+        Fore.LIGHTGREEN_EX, ' '.join(map(lambda x: x.upper().replace('_', '-'), status)), Style.RESET_ALL))
+    # verify ignored cid's from config file are actually within customer list
+    ignore_info = ''
+    if ignore is not None:
+        ignore_count = 0
+        for entry in ignore:
+            if entry in customer_list:
+                ignore_count += 1
+        ignore_info = '({0} ignored)'.format(ignore_count)
+    print info_format('info', '{0}{1}{2} customer instances detected {3}'.format(Fore.LIGHTGREEN_EX, len(customer_list),
+                                                                             Fore.LIGHTWHITE_EX, ignore_info))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
     print info_format('info', '********************************')
     for residual_alerts in master_alerts.alerts_old_list:
-        print residual_alerts
+        if full:
+            print info_format('alert', residual_alerts)
+        else:
+            print residual_alerts
     alerts_new_list = []
     # outfile handling
     if outfile is not None:
@@ -159,14 +265,24 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
-    count_cust = len(customer_list)
+    if ignore is not None:
+        count_cust = len(customer_list) - ignore_count
+    else:
+        count_cust = len(customer_list)
     count = 1
     for i in customer_list:
         customer_name = r5.json()['user_customers'][i]['name']  # customer name
+        if ignore is not None:
+            if i in ignore:
+                continue
         if r5.json()['user_customers'][i]['alias'] == 'ALIAS':  # define any instance alias here to ignore
             continue
-        sys.stdout.write('\r [{0}/{1}] {2}{3}'.format(count, count_cust, customer_name, ' ' * 25))
-        sys.stdout.flush()
+        try:
+            sys.stdout.write('\r [{0}/{1}] {2}{3}'.format(count, count_cust, customer_name, ' ' * 25))
+            sys.stdout.flush()
+        except Exception as e:
+            #print 'DEBUG: {}'.format(e)
+            continue
         print '\r',
         count += 1
         try:
@@ -185,14 +301,21 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
         # alerts
         if alerts:
             #tmp_alerts = get_alerts(customer_name, quiet)  # reserved as a backup method
-            tmp_alerts = get_alerts_detailed(customer_name, quiet)
+            tmp_alerts = get_alerts_detailed(customer_name, status, quiet, full)
             if tmp_alerts is not None:
                 if outfile is not None:
                     f.write(tmp_alerts)
                 else:
-                    if tmp_alerts not in master_alerts.alerts_old_list:
-                        print tmp_alerts
-                    alerts_new_list.append(tmp_alerts)
+                    if full:
+                        for each_alert in tmp_alerts:
+                            format_alert = parse_alert(customer_name, each_alert)
+                            if format_alert not in master_alerts.alerts_old_list:
+                                print info_format('alert', format_alert)
+                            alerts_new_list.append(parse_alert(customer_name, each_alert))
+                    else:
+                        if tmp_alerts not in master_alerts.alerts_old_list:
+                            print tmp_alerts
+                        alerts_new_list.append(tmp_alerts)
         # systems
         if systems == 1:
             if outfile is not None:
@@ -213,7 +336,7 @@ def toruk(alerts, systems, customer_cid, outfile, quiet):
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
 
 
-def get_alerts(customer_name, quiet=False):
+def get_alerts(customer_name, status, quiet=False):
     """ gets alerts """
     # There are 3 other v1 posts passed per customer with varying payloads.The dictionary below is required to return
     # the necessary data; modifying it can break the request (needs more testing). I know it is not pep8 (too long)
@@ -227,7 +350,7 @@ def get_alerts(customer_name, quiet=False):
             for bucket in cust_data['resources']:
                 if bucket['name'] == 'status':
                     for value in bucket['buckets']:
-                        if value['label'] == 'new':
+                        if value['label'] in status:
                             if 'count' in value and value['count'] > 0:
                                 alert_str = info_format('alert', '{0}{1}{2} alert(s) detected!\n'.format(
                                     Fore.LIGHTRED_EX, value['count'], Fore.LIGHTWHITE_EX))
@@ -241,7 +364,7 @@ def get_alerts(customer_name, quiet=False):
             return None
 
 
-def get_alerts_detailed(customer_name, quiet=False, full=False):
+def get_alerts_detailed(customer_name, status, quiet=False, full=False):
     """ more detailed version of alert information """
     s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=20&offset=0&q=&sort=last_behavior|desc',
                      headers=header)
@@ -251,21 +374,27 @@ def get_alerts_detailed(customer_name, quiet=False, full=False):
                           headers=header, data=json.dumps({'ids': resource_list}))
         #print json.dumps(s12.json()['resources'], indent=4)
         alert_str = ''
+        alert_list_full = []
         alert_count = 0
         for alert in s12.json()['resources']:
-            if alert['status'] == 'new':
+            if alert['status'] in status:
                 alert_count += 1
+                if full:
+                    alert_list_full.append(alert)
+                    continue
                 alert_host = alert['device']['hostname']
                 alert_severity = alert['max_severity_displayname']
                 alert_reason = alert['behaviors'][0]['scenario']
                 alert_time = alert['behaviors'][0]['timestamp']
-                alert_str += info_format('alert', '{0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!\n'.format(
+                alert_str += info_format('alert', '{8} {0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!\n'.format(
                     Fore.LIGHTYELLOW_EX, alert_severity, Fore.LIGHTGREEN_EX, alert_host, Fore.LIGHTRED_EX, alert_reason,
-                    Style.RESET_ALL, alert_time))
+                    Style.RESET_ALL, alert_time, str(alert['status']).upper().replace('_', '-')))
         if alert_count > 0:
             alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
+            if full:
+                return alert_list_full
             return alert_str
-    except KeyError:
+    except Exception:  #KeyError:
         if not quiet:
             return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
         else:
@@ -380,7 +509,20 @@ def main():
     if args.systems < 1 and not args.alerts:
         print info_format('alert', 'You must have something for toruk to do (-a or -s), exiting...')
         exit(0)
+    # parse ignore list from configs
+    ignore_list = None
+    if args.config_file is not None:
+        try:
+            config.read(args.config_file)
+            if config.has_option('Falconhost', 'ignore'):
+                ignore_list = list(config.get('Falconhost', 'ignore').split(','))
+                if ignore_list[0] == '':
+                    ignore_list = None
+        except Exception as e:
+            print info_format('alert', 'Could not parse ignore section of config file: {0}').format(e)
+    #print 'DEBUG: {}'.format(ignore_list)
     # loop
+    ######
     if args.loop is not None:
         print info_format('info', 'Loop mode selected')
         print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
@@ -391,18 +533,22 @@ def main():
         set_auth()
         while time.time() < timeout:
             try:
-                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, args.status, ignore_list)
             except requests.ConnectionError:
                 print info_format('alert', 'You encountered a connection error, re-running...')
-                pass
+                continue
+            except Exception as e:
+                print info_format('alert', 'You encountered an error, re-running...')
+                continue
             print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
             # sleeps for the the number of minutes passed by parameter (default 1 minute)
             time.sleep(args.frequency * 60)
     # no loop
+    #########
     else:
         set_auth()
         try:
-            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet)
+            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, args.status, ignore_list)
         except requests.ConnectionError:
             print info_format('alert', 'You encountered a connection error, re-run')
             exit(2)
