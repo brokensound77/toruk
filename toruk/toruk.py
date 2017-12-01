@@ -53,6 +53,9 @@ parser.add_argument('-q', '--quiet', action='store_true', help='suppresses error
 parser.add_argument('-d', '--detailed', action='store_true', help='returns detailed alert information')
 parser.add_argument('--status', choices=['new', 'in_progress'], nargs='+', default=['new'],
                     help='searches for status matching this argument only; can pass multiple arguments')
+parser.add_argument('-wl', '--enforce-wl-policy', action='store_true',
+                    help='enforces existing instance whitelist policy. This is extremely useful as falconhost fails to '
+                         'enforce these policies quite regularly. This only runs in interactive mode, not with outfile')
 args = parser.parse_args()
 
 
@@ -77,14 +80,14 @@ def enum_alert(raw_data):
         # hostinfo
         if k == 'hostinfo':
             for k2, v2 in v.items():
-                flat_dict[k2] = v2
+                flat_dict[k2] = str(v2).encode('ascii', 'replace')
                 # print '{}: {}'.format(k2, v2)  # debug
         # device
         elif k == 'device':
             for k2, v2 in v.items():
                 if k2 == 'status':
                     k2 = 'device_status'
-                flat_dict[k2] = v2
+                flat_dict[k2] = str(v2).encode('ascii', 'replace')
                 # print '{}: {}'.format(k2, v2)  # debug
         # behaviors
         elif k == 'behaviors':
@@ -92,13 +95,13 @@ def enum_alert(raw_data):
                 for k2, v2 in item2.items():
                     if k2 == 'parent_details':
                         for k3, v3 in v2.items():
-                            flat_dict[k3] = v3
+                            flat_dict[k3] = str(v3).encode('ascii', 'replace')
                             # print '{}: {}'.format(k3, v3)  # debug
                     else:
-                        flat_dict[k2] = v2
+                        flat_dict[k2] = str(v2).encode('ascii', 'replace')
                         # print '{}: {}'.format(k2, v2)  # debug
         else:
-            flat_dict[k] = v
+            flat_dict[k] = str(v).encode('ascii', 'replace')
             # print '{}: {}'.format(k, v)  # debug
     return flat_dict
 
@@ -168,6 +171,80 @@ def parse_alert(raw_data, color=True):
     return description
 
 
+def update_falcon(detection_id, status):
+    status_options = ['false_positive', 'new', 'true_positive', 'ignored', 'in_progress']
+    if status not in status_options:
+        return False
+    s13 = falcon.patch('https://falcon.crowdstrike.com/api2/detects/entities/detects/v1',
+                       json={'ids': [detection_id], 'status': status}, headers=header)
+    if s13.status_code == 200:
+        return True
+    else:
+        return False
+
+
+def whitelist(raw_alert, whitelist_in, whitelist_type=None):
+    if type not in ['customer', 'config']:
+        whitelist_type = None
+    try:
+        if raw_alert.get('sha256') in whitelist_in:
+            status = update_falcon(raw_alert.get('detection_id'), 'false_positive')
+            if status:
+                print info_format('info', 'Whitelist rule matched: {0} - updated as false positive'.format(
+                    raw_alert.get('sha256')))
+                return True
+            else:
+                print info_format('alert', 'Whitelist rule matched: {0}, but update failed!'.format(
+                    raw_alert.get('sha256')))
+                return False
+        else:
+            return False
+    except Exception as e:
+        print info_format('alert', 'issue encountered with whitelisting! alert_id: {0}, error: {1}'.format(
+            raw_alert.get('detection_id'), e))
+        return False
+
+
+def get_config_whitelist(config_file):
+    if config_file is not None:
+        try:
+            config.read(config_file)
+            if config.has_option('Falconhost', 'whitelist'):
+                config_whitelist = config.get('Falconhost', 'whitelist').split(',')
+                return config_whitelist
+        except Exception as e:
+            print info_format('alert', 'issue encountered parsing config whitelist! error: {0}'.format(e))
+            return None
+    else:
+        return None
+
+
+def get_customer_whitelist():
+    s11 = falcon.get('https://falcon.crowdstrike.com/api2/csapi/tags/queries/hashes/v1?offset=0&has_user_lists=true&scope=customer',
+        headers=header)
+    try:
+        hash_ids = s11.json()['resources']
+        if len(hash_ids) == 0:
+            return
+        clean_hash_ids = '&ids='.join(hash_ids)
+        clean_hash_ids = clean_hash_ids.rstrip('&ids=')
+        url = 'https://falcon.crowdstrike.com/api2/csapi/tags/entities/hashes/v1?ids=' + clean_hash_ids + '&scope=customer'
+        #print url
+        s12 = falcon.get(url, headers=header)
+        #print s12.status_code
+        #print s12.reason
+        verified_hashes = []
+        for each in s12.json()['resources']:
+            if each.get('prevention_action') == 'Policy.Whitelist.Manual':
+                #print each.get('prevention_action')
+                #print each.get('id')
+                verified_hashes.append(each.get('id'))
+        #print verified_hashes
+        return verified_hashes
+    except Exception:
+        return None
+
+
 def clear_screen():
     if sys.platform == 'win32':
         os.system('cls')
@@ -214,7 +291,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, quiet, full, status, outfile_object=None, ignore=None):
+def toruk(alerts, systems, customer_cid, quiet, full, status, enforce_whitelist, outfile_object=None, ignore=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -313,6 +390,10 @@ def toruk(alerts, systems, customer_cid, quiet, full, status, outfile_object=Non
         #####################################################################
         # insert per instance code below
         #####################################################################
+        if enforce_whitelist:
+            customer_whitelist = get_customer_whitelist()
+        else:
+            customer_whitelist = None
         # alerts
         if alerts:
             #tmp_alerts = get_alerts(customer_name, quiet)  # reserved as a backup method
@@ -330,7 +411,14 @@ def toruk(alerts, systems, customer_cid, quiet, full, status, outfile_object=Non
                                 outfile_object.write('\n')
                 else:
                     for each_alert in tmp_alerts:
-                        alerts_new_list.append(each_alert)
+                        if enforce_whitelist:
+                            is_whitelist = whitelist(enum_alert(each_alert), customer_whitelist)
+                        else:
+                            is_whitelist = False
+                        if not is_whitelist:
+                            alerts_new_list.append(each_alert)
+                        if is_whitelist:
+                            full = False
                         if each_alert not in master_alerts.alerts_old_list:
                             if full:
                                 print info_format('alert', parse_alert_full(each_alert, quiet, customer_name))
@@ -611,7 +699,8 @@ def main():
                 try:
                     # MAIN TORUK EXECUTION
                     ######################
-                    toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status, f, ignore_list)
+                    toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status,
+                          args.enforce_wl_policy, f, ignore_list)
                 except requests.ConnectionError:
                     print info_format('alert', 'You encountered a connection error, re-running...')
                     continue
@@ -631,7 +720,8 @@ def main():
                 print info_format('info', 'Closing up report prior to exiting...')
                 f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
                 f.close()
-            exit(2)
+            raise e
+            #exit(2)
         # close file
         if args.outfile is not None:
             f.write('\n{0}\nReport completion time: {1}\n{0}\n'.format('=' * 75, time.strftime('%XL', time.localtime())))
@@ -665,7 +755,8 @@ def main():
                 f = None
             # MAIN TORUK EXECUTION
             ######################
-            toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status, f, ignore_list)
+            toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status,
+                  args.enforce_wl_policy, f, ignore_list)
         except KeyboardInterrupt:
             print info_format('alert', 'Toruk Interrupted! Exiting...')
             if args.outfile is not None:
@@ -679,7 +770,8 @@ def main():
                 print info_format('info', 'Closing up report prior to exiting...')
                 f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
                 f.close()
-            exit(2)
+            raise e
+            #exit(2)
             # close file
         if args.outfile is not None:
             f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
