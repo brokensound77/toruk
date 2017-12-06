@@ -243,4 +243,11 @@ Can specify one or two statuses to search for: 'new' or 'in_progress'
 
 `toruk -a --status new in_progress`
 
+### Whitelist
+
+If Falcon Host is failing to implement the instance whitelist policy (common occurrence) then the whitelist is pulled, 
+verified, and all matching alerts marked as false positive
+
+`toruk -a -wl`
+
 
