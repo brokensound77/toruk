@@ -80,14 +80,14 @@ def enum_alert(raw_data):
         # hostinfo
         if k == 'hostinfo':
             for k2, v2 in v.items():
-                flat_dict[k2] = str(v2).encode('ascii', 'replace')
+                flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                 # print '{}: {}'.format(k2, v2)  # debug
         # device
         elif k == 'device':
             for k2, v2 in v.items():
                 if k2 == 'status':
                     k2 = 'device_status'
-                flat_dict[k2] = str(v2).encode('ascii', 'replace')
+                flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                 # print '{}: {}'.format(k2, v2)  # debug
         # behaviors
         elif k == 'behaviors':
@@ -95,13 +95,13 @@ def enum_alert(raw_data):
                 for k2, v2 in item2.items():
                     if k2 == 'parent_details':
                         for k3, v3 in v2.items():
-                            flat_dict[k3] = str(v3).encode('ascii', 'replace')
+                            flat_dict[k3] = v3.encode('ascii', 'replace') if isinstance(v3, unicode) else v3
                             # print '{}: {}'.format(k3, v3)  # debug
                     else:
-                        flat_dict[k2] = str(v2).encode('ascii', 'replace')
+                        flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                         # print '{}: {}'.format(k2, v2)  # debug
         else:
-            flat_dict[k] = str(v).encode('ascii', 'replace')
+            flat_dict[k] = v.encode('ascii', 'replace') if isinstance(v, unicode) else v
             # print '{}: {}'.format(k, v)  # debug
     return flat_dict
 
@@ -474,7 +474,7 @@ def get_alerts(customer_name, status, quiet=False):
 
 def get_alerts_detailed(customer_name, status, quiet=False, full=False):
     """ more detailed version of alert information """
-    s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=20&offset=0&q=&sort=last_behavior|desc',
+    s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=500&offset=0&q=&sort=last_behavior|desc',
                      headers=header)
     try:
         resource_list = s11.json()['resources']
