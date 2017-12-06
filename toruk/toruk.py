@@ -25,7 +25,8 @@ header = {
         'Accept-Language': 'en-US; q=0.7, en; q=0.3',
         'Cache-Control': 'no-cache',
         'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
+        'X-Requested-With': 'XMLHttpRequest',
+        'user-agent': 'Mozilla'
         }
 FALCON_UNAME = ''
 FALCON_PASS = ''
@@ -52,6 +53,9 @@ parser.add_argument('-q', '--quiet', action='store_true', help='suppresses error
 parser.add_argument('-d', '--detailed', action='store_true', help='returns detailed alert information')
 parser.add_argument('--status', choices=['new', 'in_progress'], nargs='+', default=['new'],
                     help='searches for status matching this argument only; can pass multiple arguments')
+parser.add_argument('-wl', '--enforce-wl-policy', action='store_true',
+                    help='enforces existing instance whitelist policy. This is extremely useful as falconhost fails to '
+                         'enforce these policies quite regularly. This only runs in interactive mode, not with outfile')
 args = parser.parse_args()
 
 
@@ -76,14 +80,14 @@ def enum_alert(raw_data):
         # hostinfo
         if k == 'hostinfo':
             for k2, v2 in v.items():
-                flat_dict[k2] = v2
+                flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                 # print '{}: {}'.format(k2, v2)  # debug
         # device
         elif k == 'device':
             for k2, v2 in v.items():
                 if k2 == 'status':
                     k2 = 'device_status'
-                flat_dict[k2] = v2
+                flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                 # print '{}: {}'.format(k2, v2)  # debug
         # behaviors
         elif k == 'behaviors':
@@ -91,19 +95,29 @@ def enum_alert(raw_data):
                 for k2, v2 in item2.items():
                     if k2 == 'parent_details':
                         for k3, v3 in v2.items():
-                            flat_dict[k3] = v3
+                            flat_dict[k3] = v3.encode('ascii', 'replace') if isinstance(v3, unicode) else v3
                             # print '{}: {}'.format(k3, v3)  # debug
                     else:
-                        flat_dict[k2] = v2
+                        flat_dict[k2] = v2.encode('ascii', 'replace') if isinstance(v2, unicode) else v2
                         # print '{}: {}'.format(k2, v2)  # debug
         else:
-            flat_dict[k] = v
+            flat_dict[k] = v.encode('ascii', 'replace') if isinstance(v, unicode) else v
             # print '{}: {}'.format(k, v)  # debug
     return flat_dict
 
 
-def parse_alert(customer_name, raw_data):
+def parse_alert(raw_data, color=True):
     flat_dict = enum_alert(raw_data)
+    if color is True:
+        yellow = Fore.LIGHTYELLOW_EX
+        green = Fore.LIGHTGREEN_EX
+        red = Fore.LIGHTRED_EX
+        reset = Style.RESET_ALL
+    else:
+        yellow = ''
+        green = ''
+        red = ''
+        reset = ''
     # generate alert link
     #part1 = flat_dict['detection_id'].split(':')  # 1,2
     #part2 = flat_dict['triggering_process_graph_id'].split(':') # 2
@@ -147,12 +161,88 @@ def parse_alert(customer_name, raw_data):
                         flat_dict.get('parent_cmdline'),
                         flat_dict.get('parent_sha256'),
                         flat_dict.get('parent_md5'),
-                        customer_name,
+                        # THIS FIELD IS NOT ORGANIC; ADDED AT RETRIEVAL BY get_alerts_detailed()
+                        flat_dict.get('customer_name'),
                         # 21                22                  23                  24
-                        Fore.LIGHTYELLOW_EX, Fore.LIGHTGREEN_EX, Fore.LIGHTRED_EX, Style.RESET_ALL,
+                        #Fore.LIGHTYELLOW_EX, Fore.LIGHTGREEN_EX, Fore.LIGHTRED_EX, Style.RESET_ALL,
+                        yellow, green, red, reset,
                         flat_dict.get('status').upper().replace('_', '-'),
                         ))
     return description
+
+
+def update_falcon(detection_id, status):
+    status_options = ['false_positive', 'new', 'true_positive', 'ignored', 'in_progress']
+    if status not in status_options:
+        return False
+    s13 = falcon.patch('https://falcon.crowdstrike.com/api2/detects/entities/detects/v1',
+                       json={'ids': [detection_id], 'status': status}, headers=header)
+    if s13.status_code == 200:
+        return True
+    else:
+        return False
+
+
+def whitelist(raw_alert, whitelist_in, whitelist_type=None):
+    if type not in ['customer', 'config']:
+        whitelist_type = None
+    try:
+        if raw_alert.get('sha256') in whitelist_in:
+            status = update_falcon(raw_alert.get('detection_id'), 'false_positive')
+            if status:
+                print info_format('info', 'Whitelist rule matched: {0} - updated as false positive'.format(
+                    raw_alert.get('sha256')))
+                return True
+            else:
+                print info_format('alert', 'Whitelist rule matched: {0}, but update failed!'.format(
+                    raw_alert.get('sha256')))
+                return False
+        else:
+            return False
+    except Exception as e:
+        print info_format('alert', 'issue encountered with whitelisting! alert_id: {0}, error: {1}'.format(
+            raw_alert.get('detection_id'), e))
+        return False
+
+
+def get_config_whitelist(config_file):
+    if config_file is not None:
+        try:
+            config.read(config_file)
+            if config.has_option('Falconhost', 'whitelist'):
+                config_whitelist = config.get('Falconhost', 'whitelist').split(',')
+                return config_whitelist
+        except Exception as e:
+            print info_format('alert', 'issue encountered parsing config whitelist! error: {0}'.format(e))
+            return None
+    else:
+        return None
+
+
+def get_customer_whitelist():
+    s11 = falcon.get('https://falcon.crowdstrike.com/api2/csapi/tags/queries/hashes/v1?offset=0&has_user_lists=true&scope=customer',
+        headers=header)
+    try:
+        hash_ids = s11.json()['resources']
+        if len(hash_ids) == 0:
+            return
+        clean_hash_ids = '&ids='.join(hash_ids)
+        clean_hash_ids = clean_hash_ids.rstrip('&ids=')
+        url = 'https://falcon.crowdstrike.com/api2/csapi/tags/entities/hashes/v1?ids=' + clean_hash_ids + '&scope=customer'
+        #print url
+        s12 = falcon.get(url, headers=header)
+        #print s12.status_code
+        #print s12.reason
+        verified_hashes = []
+        for each in s12.json()['resources']:
+            if each.get('prevention_action') == 'Policy.Whitelist.Manual':
+                #print each.get('prevention_action')
+                #print each.get('id')
+                verified_hashes.append(each.get('id'))
+        #print verified_hashes
+        return verified_hashes
+    except Exception:
+        return None
 
 
 def clear_screen():
@@ -201,7 +291,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(alerts, systems, customer_cid, outfile, quiet, full, status, ignore=None):
+def toruk(alerts, systems, customer_cid, quiet, full, status, enforce_whitelist, outfile_object=None, ignore=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -237,31 +327,33 @@ def toruk(alerts, systems, customer_cid, outfile, quiet, full, status, ignore=No
                                                                              Fore.LIGHTWHITE_EX, ignore_info))
     print info_format('info', 'Performing search ({0})...'.format(time.strftime('%XL', time.localtime())))
     print info_format('info', '********************************')
-    for residual_alerts in master_alerts.alerts_old_list:
-        if full:
-            print info_format('alert', residual_alerts)
-        else:
-            print residual_alerts
+    # print residual alerts from last iteration
+    if outfile_object is None:
+        for residual_alerts in master_alerts.alerts_old_list:
+            if full:
+                print info_format('alert', parse_alert_full(residual_alerts, quiet))
+            else:
+                print info_format('alert', parse_alert_short(residual_alerts, quiet))
     alerts_new_list = []
     # outfile handling
-    if outfile is not None:
+    '''if outfile_object is not None:
         try:
-            with open(outfile, 'wb') as f:
+            with open(outfile_object, 'wb') as f:
                 f.write('')  # clears file prior to loop iteration
         except Exception as e:
-            print info_format('alert', 'Error clearing {0}: {1}, exiting...'.format(outfile, e))
+            print info_format('alert', 'Error clearing {0}: {1}, exiting...'.format(outfile_object, e))
             exit(2)
         try:
-            f = open(outfile, 'ab')
-            print info_format('info', 'Writing contents to {0}'.format(outfile))
+            f = open(outfile_object, 'ab')
+            print info_format('info', 'Writing contents to {0}'.format(outfile_object))
             f.write('Report generated by: {0}\n'
                     'Report generation start time: {1}\n'
                     'Total instances: {2}\n'
                     'Report powered by: Toruk\n'
                     '{3}\n'.format(FALCON_UNAME, time.strftime('%XL', time.localtime()), len(customer_list), '=' * 75))
         except Exception as e:
-            print info_format('alert', 'Error opening {0} to write to: {1}, exiting...'.format(outfile, e))
-            exit(2)
+            print info_format('alert', 'Error opening {0} to write to: {1}, exiting...'.format(outfile_object, e))
+            exit(2)'''
     #########################################################################
     # iterate through customer instances to retrieve, parse, and display data
     #########################################################################
@@ -298,40 +390,56 @@ def toruk(alerts, systems, customer_cid, outfile, quiet, full, status, ignore=No
         #####################################################################
         # insert per instance code below
         #####################################################################
+        if enforce_whitelist:
+            customer_whitelist = get_customer_whitelist()
+        else:
+            customer_whitelist = None
         # alerts
         if alerts:
             #tmp_alerts = get_alerts(customer_name, quiet)  # reserved as a backup method
             tmp_alerts = get_alerts_detailed(customer_name, status, quiet, full)
             if tmp_alerts is not None:
-                if outfile is not None:
-                    f.write(tmp_alerts)
+                if outfile_object is not None:
+                    for each_alert in tmp_alerts:
+                        alerts_new_list.append(each_alert)
+                        if each_alert not in master_alerts.alerts_old_list:
+                            if full:
+                                outfile_object.write(parse_alert_full(each_alert, quiet, customer_name, color=False))
+                                outfile_object.write('\n')
+                            else:
+                                outfile_object.write(parse_alert_short(each_alert, quiet, customer_name, color=False))
+                                outfile_object.write('\n')
                 else:
-                    if full:
-                        for each_alert in tmp_alerts:
-                            format_alert = parse_alert(customer_name, each_alert)
-                            if format_alert not in master_alerts.alerts_old_list:
-                                print info_format('alert', format_alert)
-                            alerts_new_list.append(parse_alert(customer_name, each_alert))
-                    else:
-                        if tmp_alerts not in master_alerts.alerts_old_list:
-                            print tmp_alerts
-                        alerts_new_list.append(tmp_alerts)
+                    for each_alert in tmp_alerts:
+                        if enforce_whitelist:
+                            is_whitelist = whitelist(enum_alert(each_alert), customer_whitelist)
+                        else:
+                            is_whitelist = False
+                        if not is_whitelist:
+                            alerts_new_list.append(each_alert)
+                        if is_whitelist:
+                            full = False
+                        if each_alert not in master_alerts.alerts_old_list:
+                            if full:
+                                print info_format('alert', parse_alert_full(each_alert, quiet, customer_name))
+                            else:
+                                print info_format('alert', parse_alert_short(each_alert, quiet, customer_name))
         # systems
         if systems == 1:
-            if outfile is not None:
-                f.write(get_machines(customer_name))
+            if outfile_object is not None:
+                outfile_object.write(get_machines(customer_name))
             else:
                 print get_machines(customer_name)
         elif systems > 1:
-            if outfile is not None:
-                f.write(get_machines(customer_name, full=True))
+            if outfile_object is not None:
+                outfile_object.write(get_machines(customer_name, full=True))
             else:
                 print get_machines(customer_name, full=True)
         #####################################################################
         #####################################################################
-    if outfile is not None:
-        f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
-        f.close()
+    if outfile_object is not None:
+        outfile_object.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+        #outfile_object.close()
     master_alerts.alerts_old_list = list(alerts_new_list)
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
 
@@ -366,39 +474,69 @@ def get_alerts(customer_name, status, quiet=False):
 
 def get_alerts_detailed(customer_name, status, quiet=False, full=False):
     """ more detailed version of alert information """
-    s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=20&offset=0&q=&sort=last_behavior|desc',
+    s11 = falcon.get('https://falcon.crowdstrike.com/api2/detects/queries/detects/v1?filter=&limit=500&offset=0&q=&sort=last_behavior|desc',
                      headers=header)
     try:
         resource_list = s11.json()['resources']
         s12 = falcon.post('https://falcon.crowdstrike.com/api2/detects/entities/summaries/GET/v1',
                           headers=header, data=json.dumps({'ids': resource_list}))
-        #print json.dumps(s12.json()['resources'], indent=4)
-        alert_str = ''
         alert_list_full = []
         alert_count = 0
         for alert in s12.json()['resources']:
             if alert['status'] in status:
                 alert_count += 1
-                if full:
-                    alert_list_full.append(alert)
-                    continue
-                alert_host = alert['device']['hostname']
-                alert_severity = alert['max_severity_displayname']
-                alert_reason = alert['behaviors'][0]['scenario']
-                alert_time = alert['behaviors'][0]['timestamp']
-                alert_str += info_format('alert', '{8} {0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!\n'.format(
-                    Fore.LIGHTYELLOW_EX, alert_severity, Fore.LIGHTGREEN_EX, alert_host, Fore.LIGHTRED_EX, alert_reason,
-                    Style.RESET_ALL, alert_time, str(alert['status']).upper().replace('_', '-')))
+                alert['customer_name'] = customer_name
+                alert_list_full.append(alert)
         if alert_count > 0:
-            alert_str += '----> {0}{1}{2}'.format(Fore.LIGHTGREEN_EX, customer_name, Style.RESET_ALL)
-            if full:
-                return alert_list_full
-            return alert_str
+            return alert_list_full
     except Exception:  #KeyError:
         if not quiet:
             return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
         else:
             return None
+
+
+def parse_alert_full(raw_alert, quiet, customer_name=None, color=True):
+    """"""
+    try:
+        return parse_alert(raw_alert, color=color)
+    except Exception:  # KeyError:
+        if not quiet:
+            return info_format('alert', 'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
+
+
+def parse_alert_short(raw_alert, quiet, customer_name=None, color=True):
+    """"""
+    if color is True:
+        yellow = Fore.LIGHTYELLOW_EX
+        green = Fore.LIGHTGREEN_EX
+        red = Fore.LIGHTRED_EX
+        reset = Style.RESET_ALL
+    else:
+        yellow = ''
+        green = ''
+        red = ''
+        reset = ''
+    try:
+        alert = enum_alert(raw_alert)
+        alert_str = ''
+        alert_cust_name = alert.get('customer_name')
+        alert_host = alert.get('hostname')
+        alert_severity = alert.get('max_severity_displayname')
+        alert_reason = alert.get('scenario')
+        alert_time = alert.get('timestamp')
+        alert_status = alert.get('status')
+        #alert_str += '{8} {4}{9}{6} - {0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!'.format(
+        #    Fore.LIGHTYELLOW_EX, alert_severity, Fore.LIGHTGREEN_EX, alert_host, Fore.LIGHTRED_EX, alert_reason,
+        #    Style.RESET_ALL, alert_time, alert_status.upper().replace('_', '-'), alert_cust_name)
+        alert_str += '{8} {4}{9}{6} - {0}{1}{6} alert on {2}{3}{6} for {4}{5}{6} ({7})!'.format(
+            yellow, alert_severity, green, alert_host, red, alert_reason,
+            reset, alert_time, alert_status.upper().replace('_', '-'), alert_cust_name)
+        return alert_str
+    except Exception:  # KeyError:
+        if not quiet:
+            return info_format('alert',
+                               'There was an issue retrieving alerts for {0}. Skipping...'.format(customer_name))
 
 
 def get_machines(customer_name, full=False):
@@ -526,32 +664,118 @@ def main():
     if args.loop is not None:
         print info_format('info', 'Loop mode selected')
         print info_format('info', 'Running in a loop for {0} hour(s)'.format(args.loop))
-        if args.outfile is not None:
-            print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
-                                       ' will be overwritten with each loop')
+        #if args.outfile is not None:
+        #    print info_format('alert', 'It is not advisable to output to a file while in loop mode, as the contents'
+        #                               ' will be overwritten with each loop')
         timeout = time.time() + (60 * 60 * args.loop)
         set_auth()
-        while time.time() < timeout:
-            try:
-                toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, args.status, ignore_list)
-            except requests.ConnectionError:
-                print info_format('alert', 'You encountered a connection error, re-running...')
-                continue
-            except Exception as e:
-                print info_format('alert', 'You encountered an error, re-running...')
-                continue
-            print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
-            # sleeps for the the number of minutes passed by parameter (default 1 minute)
-            time.sleep(args.frequency * 60)
+        try:
+            # outfile handling
+            ##################
+            if args.outfile is not None:
+                try:
+                    with open(args.outfile, 'wb') as f:
+                        f.write('')  # clears file prior to loop iteration
+                except Exception as e:
+                    print info_format('alert', 'Error clearing {0}: {1}, exiting...'.format(args.outfile, e))
+                    exit(2)
+                try:
+                    f = open(args.outfile, 'ab')
+                    print info_format('info', 'Writing contents to {0}'.format(args.outfile))
+                    f.write('Report generated by: {0}\n'
+                            'Report generation start time: {1}\n'
+                            'Loop mode selected for {2} hours every {3} minutes\n'
+                            'Report powered by: Toruk\n'
+                            '{4}\n'.format(FALCON_UNAME, time.strftime('%XL', time.localtime()), args.loop,
+                                           args.frequency, '=' * 75))
+                except Exception as e:
+                    print info_format('alert', 'Error opening {0} for report setup: {1}, exiting...'.format(
+                        args.outfile, e))
+                    exit(2)
+            else:
+                f = None
+            # start loop
+            while time.time() < timeout:
+                try:
+                    # MAIN TORUK EXECUTION
+                    ######################
+                    toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status,
+                          args.enforce_wl_policy, f, ignore_list)
+                except requests.ConnectionError:
+                    print info_format('alert', 'You encountered a connection error, re-running...')
+                    continue
+                print info_format('sleep', 'Sleeping for {} minute(s)'.format(args.frequency))
+                # sleeps for the the number of minutes passed by parameter (default 1 minute)
+                time.sleep(args.frequency * 60)
+        except KeyboardInterrupt:
+            print info_format('alert', 'Toruk Interrupted! Exiting...')
+            if args.outfile is not None:
+                print info_format('info', 'Closing up report prior to exiting...')
+                f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+                f.close()
+            exit(2)
+        except Exception as e:
+            print info_format('alert', 'You encountered an error: {0}, re-run!'.format(e))
+            if args.outfile is not None:
+                print info_format('info', 'Closing up report prior to exiting...')
+                f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+                f.close()
+            raise e
+            #exit(2)
+        # close file
+        if args.outfile is not None:
+            f.write('\n{0}\nReport completion time: {1}\n{0}\n'.format('=' * 75, time.strftime('%XL', time.localtime())))
+            f.close()
     # no loop
     #########
     else:
         set_auth()
         try:
-            toruk(args.alerts, args.systems, args.instance, args.outfile, args.quiet, args.detailed, args.status, ignore_list)
-        except requests.ConnectionError:
-            print info_format('alert', 'You encountered a connection error, re-run')
+            # outfile handling
+            ##################
+            if args.outfile is not None:
+                try:
+                    with open(args.outfile, 'wb') as f:
+                        f.write('')  # clears file prior to loop iteration
+                except Exception as e:
+                    print info_format('alert', 'Error clearing {0}: {1}, exiting...'.format(args.outfile, e))
+                    exit(2)
+                try:
+                    f = open(args.outfile, 'ab')
+                    print info_format('info', 'Writing contents to {0}'.format(args.outfile))
+                    f.write('Report generated by: {0}\n'
+                            'Report generation start time: {1}\n'
+                            'Report powered by: Toruk\n'
+                            '{2}\n'.format(FALCON_UNAME, time.strftime('%XL', time.localtime()), '=' * 75))
+                except Exception as e:
+                    print info_format('alert', 'Error opening {0} for report setup: {1}, exiting...'.format(
+                        args.outfile, e))
+                    exit(2)
+            else:
+                f = None
+            # MAIN TORUK EXECUTION
+            ######################
+            toruk(args.alerts, args.systems, args.instance, args.quiet, args.detailed, args.status,
+                  args.enforce_wl_policy, f, ignore_list)
+        except KeyboardInterrupt:
+            print info_format('alert', 'Toruk Interrupted! Exiting...')
+            if args.outfile is not None:
+                print info_format('info', 'Closing up report prior to exiting...')
+                f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+                f.close()
             exit(2)
+        except Exception as e:
+            print info_format('alert', 'You encountered an error: {0}, re-run!'.format(e))
+            if args.outfile is not None:
+                print info_format('info', 'Closing up report prior to exiting...')
+                f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+                f.close()
+            raise e
+            #exit(2)
+            # close file
+        if args.outfile is not None:
+            f.write('\n{0}\nReport completion time: {1}'.format('=' * 75, time.strftime('%XL', time.localtime())))
+            f.close()
 
 
 if __name__ == '__main__':
