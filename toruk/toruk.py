@@ -653,7 +653,8 @@ def main():
         try:
             config.read(args.config_file)
             if config.has_option('Falconhost', 'ignore'):
-                ignore_list = list(config.get('Falconhost', 'ignore').split(','))
+                ignore_list_dirty = list(config.get('Falconhost', 'ignore').split(','))
+                ignore_list = map(lambda x: x.strip(), ignore_list_dirty)
                 if ignore_list[0] == '':
                     ignore_list = None
         except Exception as e:
