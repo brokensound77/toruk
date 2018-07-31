@@ -251,3 +251,22 @@ verified, and all matching alerts marked as false positive
 `toruk -a -wl`
 
 
+## Tools
+
+standalone scripts / tools
+
+### audit_falcon
+
+```
+usage: audit_falcon_policy.py [-h] [-i INSTANCE] [-c CONFIG_FILE] [-csv CSV]
+
+Audit policies of all customers
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INSTANCE, --instance INSTANCE
+                        cid for specific customer instance
+  -c CONFIG_FILE, --config-file CONFIG_FILE
+                        select a config file with user credentials
+  -csv CSV              output to specified csv file
+  ```
