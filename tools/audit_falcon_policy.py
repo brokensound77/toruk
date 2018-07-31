@@ -100,7 +100,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(customer_cid, ignore=None, policy=False, to_csv=None):
+def toruk(customer_cid, ignore=None, to_csv=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -178,8 +178,7 @@ def toruk(customer_cid, ignore=None, policy=False, to_csv=None):
         # insert per instance code below
         #####################################################################
         # policy
-        if policy:
-            get_policy(customer_name, csv_writer)
+        get_policy(customer_name, csv_writer)
         #####################################################################
         #####################################################################
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
@@ -342,7 +341,7 @@ def main():
             print info_format('alert', 'Could not parse ignore section of config file: {0}').format(e)
 
     set_auth()
-    toruk(args.instance, ignore_list, args.policy, args.csv)
+    toruk(args.instance, ignore_list, args.csv)
 
 if __name__ == '__main__':
     main()
