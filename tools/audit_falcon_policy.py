@@ -36,6 +36,8 @@ FALCON_OTP = ''
 parser.add_argument('-i', '--instance', type=str, help='cid for specific customer instance')
 parser.add_argument('-c', '--config-file', type=str, help='select a config file with user credentials')
 parser.add_argument('-csv', help='output to specified csv file')
+parser.add_argument('-u', '--update', help='update with specified config file (use caution with multiple edits or use '
+                                           '-i to edit a single user only)')
 args = parser.parse_args()
 
 
@@ -100,7 +102,7 @@ def falcon_auth():
     falcon.get('https://falcon.crowdstrike.com')
 
 
-def toruk(customer_cid, ignore=None, to_csv=None):
+def toruk(customer_cid, ignore=None, to_csv=None, update=None):
     falcon.get('https://falcon.crowdstrike.com')
     r5 = falcon.post('https://falcon.crowdstrike.com/api2/auth/verify', headers=header)
     if r5.status_code != 200:
@@ -178,7 +180,7 @@ def toruk(customer_cid, ignore=None, to_csv=None):
         # insert per instance code below
         #####################################################################
         # policy
-        get_policy(customer_name, csv_writer)
+        get_policy(customer_name, csv_writer, update)
         #####################################################################
         #####################################################################
     print info_format('info', 'Search complete ({0})'.format(time.strftime('%XL', time.localtime())))
@@ -225,7 +227,35 @@ def csv_policy(customer_name, raw_policy, csv_writer):
                     csv_writer.writerow([customer_name, category, sub_category, setting, value])
 
 
-def get_policy(customer_name, csv_writer):
+def update_policy(policy_id, policy_config):
+    """
+    see example config file
+    :param policy_id: alphanumeric policy for default windows policy
+    :param policy_config: json formatted file - only changed options required (not all)
+    :return: boolean - success or failure
+    """
+    try:
+        with open(policy_config, 'rb') as f:
+            settings = json.loads(f.read())
+
+        new_policy = {
+            'policies': [{
+                'id': policy_id,
+                'settings': [settings]
+                }]
+            }
+
+        u_p = falcon.patch('https://falcon.crowdstrike.com/api2/policies/entities/prevention/v1', data=new_policy)
+
+        if u_p.status_code == 201:
+            return True
+        else:
+            return False
+    except Exception:
+        return False
+
+
+def get_policy(customer_name, csv_writer, update):
     """ more detailed version of alert information """
     s_id = falcon.get('https://falcon.crowdstrike.com/api2/policies/queries/prevention/v1?limit=500&offset=0', headers=header)
     try:
@@ -242,7 +272,14 @@ def get_policy(customer_name, csv_writer):
         #print 'DEBUG {}'.format(policies)
         for policy in policies:
             if policy.get('name').lower() == 'platform_default' and policy.get('platform_name').lower() == 'windows':
-                if csv_writer:
+                if update:
+                    policy_id = policy.get('id')
+                    update_status = update_policy(policy_id, update)
+                    if update_status:
+                        print info_format('info', 'successfully updated policy for {0}'.format(customer_name))
+                    else:
+                        print info_format('alert', 'failed to update policy for {0}'.format(customer_name))
+                elif csv_writer:
                     csv_policy(customer_name, policy, csv_writer)
                 else:
                     print_policy(customer_name, policy)
@@ -327,6 +364,9 @@ def main():
     clear_screen()
     print Fore.LIGHTRED_EX + art + Style.RESET_ALL
     print title
+    if args.update and args.csv:
+        print info_format('alert', 'update mode does not output data! Skipping CSV output...')
+        args.csv = None
     # parse ignore list from configs
     ignore_list = None
     if args.config_file is not None:
@@ -341,7 +381,7 @@ def main():
             print info_format('alert', 'Could not parse ignore section of config file: {0}').format(e)
 
     set_auth()
-    toruk(args.instance, ignore_list, args.csv)
+    toruk(args.instance, ignore_list, args.csv, args.update)
 
 if __name__ == '__main__':
     main()
